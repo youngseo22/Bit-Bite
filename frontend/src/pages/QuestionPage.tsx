@@ -2,6 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { RetryDialog } from '@/components/RetryDialog';
 // import BackgroundGroundImage from '../assets/GradientBackground.png';
 
 export function QuestionPage() {
@@ -12,10 +13,11 @@ export function QuestionPage() {
   const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(5 * 60); // 5 minutes in seconds
+  const [timeLeft, setTimeLeft] = useState(3); // 5 minutes in seconds
   const [isExtended, setIsExtended] = useState(false);
   const [isTimeUp, setIsTimeUp] = useState(false);
-  const [isTimeExtendedVisual, setIsTimeExtendedVisual] = useState(false); // New state for visual feedback
+  const [isTimeExtendedVisual, setIsTimeExtendedVisual] = useState(false);
+  const [isRetryDialogOpen, setIsRetryDialogOpen] = useState(false);
 
   const answerRef = useRef(answer);
   answerRef.current = answer;
@@ -39,32 +41,33 @@ export function QuestionPage() {
   }, [category]);
 
   useEffect(() => {
-    if (isTimeUp) return;
+    if (timeLeft > 0) {
+      const timer = setInterval(() => {
+        setTimeLeft(prevTime => prevTime - 1);
+      }, 1000);
+      return () => clearInterval(timer);
+    }
+  }, [timeLeft]);
 
-    if (timeLeft <= 0) {
+  useEffect(() => {
+    if (timeLeft <= 0 && !isTimeUp) {
       if (answerRef.current.trim().length === 0) {
         setIsTimeUp(true);
+        setIsRetryDialogOpen(true);
       } else {
         handleSubmit();
       }
-      return;
     }
-
-    const timer = setInterval(() => {
-      setTimeLeft(prevTime => prevTime - 1);
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [timeLeft, handleSubmit, isTimeUp]);
+  }, [timeLeft, isTimeUp, handleSubmit]);
 
   const handleExtendTime = () => {
     if (!isExtended) {
-      setTimeLeft(prevTime => prevTime + 5 * 60); // Add 5 minutes
+      setTimeLeft(prevTime => prevTime + 5 * 60);
       setIsExtended(true);
-      setIsTimeExtendedVisual(true); // Activate visual feedback
+      setIsTimeExtendedVisual(true);
       setTimeout(() => {
-        setIsTimeExtendedVisual(false); // Deactivate after a short delay
-      }, 700); // 0.7초 후에 원래 색상으로 돌아옴
+        setIsTimeExtendedVisual(false);
+      }, 1000);
     }
   };
 
@@ -74,7 +77,16 @@ export function QuestionPage() {
     return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
+  const goToHome = () => {
+    navigate('/');
+  };
+
+  const refreshPage = () => {
+    window.location.reload();
+  };
+
   return (
+    <>
     <div
       // className="h-full flex flex-col items-center justify-center pb-15 px-4 text-center bg-center bg-no-repeat bg-cover md:bg-contain text-gray-800"
       // style={{backgroundImage: `url(${BackgroundGroundImage})`}}>
@@ -98,7 +110,7 @@ export function QuestionPage() {
 
       <p className="text-md mb-8 w-full md:max-w-2xl text-gray-600">{question}</p>
 
-      <div className="w-full md:max-w-2xl">
+      <div className="w-full flex flex-col md:max-w-2xl">
         <Textarea
           placeholder="여기에 답변을 입력하세요..."
           value={answer}
@@ -107,7 +119,10 @@ export function QuestionPage() {
           className="min-h-[200px] text-base w-full p-4 bg-transparent border border-gray-200 focus:outline-none"
           disabled={isTimeUp}
         />
-        <p className="text-right text-sm text-gray-600 mt-1">{answer.trim().length}/400</p>
+        <div className='flex justify-between'>
+          <p className="text-left text-sm text-red-500 mt-1">제한 시간이 지나면 자동으로 제출됩니다.</p>
+          <p className="text-right text-sm text-gray-600 mt-1">{answer.trim().length}/400</p>
+        </div>
       </div>
       <Button
         type='button'
@@ -117,5 +132,13 @@ export function QuestionPage() {
         제출하기
       </Button>
     </div>
+
+    <RetryDialog
+      isOpen={isRetryDialogOpen}
+      onOpenChange={setIsRetryDialogOpen}
+      onCancle={goToHome}
+      onConfirm={refreshPage}
+    />
+    </>
   );
 }
