@@ -25,7 +25,7 @@ async def send_verification_code(email_to: str, code: str):
         <h2 style="color: #2c3e50;">Bit-Bite 인증번호</h2>
         <p>안녕하세요! 구독 신청을 위한 인증번호입니다.</p>
         <h1 style="color: #3498db; letter-spacing: 5px;">{code}</h1>
-        <p>3분 안에 입력해주세요.</p>
+        <p>5분 안에 입력해주세요.</p>
         <hr>
         <p style="font-size: 12px; color: gray;">본 메일은 발신 전용입니다.</p>
     </div>
