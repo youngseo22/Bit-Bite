@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
+from typing import List
 import redis
 import random
 import models, schemas 
@@ -102,3 +103,10 @@ def subscribe(req: schemas.SubscriberCreate, db: Session = Depends(get_db)):
 @app.get("/")
 def read_root():
     return {"Status": "DB 연결 성공"}
+
+
+# === 구독자 목록 조회 API (관리자용) ===
+@app.get("/subscribers", response_model=List[schemas.SubscriberResponse])
+def read_subscribers(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    subscribers = db.query(models.Subscriber).offset(skip).limit(limit).all()
+    return subscribers
