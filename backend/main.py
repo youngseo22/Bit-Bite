@@ -1,5 +1,8 @@
 from fastapi import FastAPI, Depends
+from dotenv import load_dotenv
+load_dotenv()
 from sqlalchemy.orm import Session
+from services import generate_new_question_for_all_tracks, analyze_and_feedback
 
 # 우리가 만든 모듈들
 import models
@@ -60,6 +63,23 @@ def create_subscriber(
     
     # 7. 생성된 SQLAlchemy 모델 객체를 반환 (FastAPI가 JSON으로 변환)
     return db_subscriber
+
+# === AI API: 1. 질문 생성 (스케줄러/CronJob 호출용) ===
+@app.post("/api/v1/challenge/generate-question")
+async def handle_question_generation(db: Session = Depends(get_db)):
+    """평일 오전 8시에 호출되어 AI 질문을 생성하고 DB에 저장합니다."""
+    # 동기 DB 세션을 services.py의 async 함수에 전달
+    await generate_new_question_for_all_tracks(db) 
+    return {"message": "Daily questions generation initiated successfully."}
+
+
+# === AI API: 2. 답변 제출 및 피드백 (사용자 요청) ===
+@app.post("/api/v1/challenge/submit-answer", response_model=schemas.FeedbackResult)
+async def submit_answer(submission: schemas.AnswerSubmission):
+    """사용자 답변을 받아 AI 분석 후 실시간 피드백을 JSON으로 반환합니다."""
+    # 이 함수는 DB 접근이 불필요하므로 DB 세션을 주입하지 않습니다.
+    feedback = await analyze_and_feedback(submission)
+    return feedback
 
 
 # 기본 루트 API (그대로 둡니다)
