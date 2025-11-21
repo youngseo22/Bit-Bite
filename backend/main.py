@@ -1,10 +1,11 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import List
 import redis
 import random
 import models, schemas 
 from database import engine, SessionLocal 
+from email_utils import send_verification_code
 
 # DB 테이블 생성
 models.Base.metadata.create_all(bind=engine) 
@@ -14,7 +15,6 @@ app = FastAPI()
 # === Redis 연결 ===
 # 우분투 VM 안에서 도커로 띄운 Redis(localhost:6379)에 접속
 # decode_responses=True: 이걸 해야 b'1234'가 아니라 그냥 '1234' 문자열로 나옵니다.
-# rd = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
 
 try:
     rd = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
@@ -35,7 +35,10 @@ def get_db():
 # === API 엔드포인트 ===
 
 @app.post("/email/request-verification")
-def request_verification(req: schemas.EmailRequest):
+def request_verification(
+    req: schemas.EmailRequest, 
+    background_tasks: BackgroundTasks # 백그라운드 실행 도구
+    ):
     # 1. 이미 구독한 이메일인지 DB 체크 (우선 생략)
     
     # 2. 인증번호 6자리 생성 (1000 ~ 999999)
@@ -43,11 +46,19 @@ def request_verification(req: schemas.EmailRequest):
     
     # 3. Redis에 저장 (Key: 이메일, Value: 인증번호) - 5분 유효
     rd.set(name=req.email, value=verification_code, ex=300)
+
+    # 4. 백그라운드로 이메일 발송 작업 추가
+    background_tasks.add_task(
+        send_verification_code, 
+        req.email, 
+        verification_code
+    )
     
-    # 4. 이메일 발송 함수를 호출
-    print(f"📧 [전송됨] {req.email}의 인증번호: {verification_code}")
+    # 5. 이메일 발송 함수를 호출
+    print(f"📧 {req.email}의 인증번호: {verification_code}")
+    print(f"📧 [발송 요청] {req.email} (백그라운드 작업 등록됨)")
     
-    return {"message": "인증번호가 전송되었습니다. (콘솔 확인)"}
+    return {"message": "인증번호가 전송되었습니다. 이메일을 확인해주세요."}
 
 
 @app.post("/email/verify-code")
