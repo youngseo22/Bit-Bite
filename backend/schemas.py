@@ -1,6 +1,6 @@
-from pydantic import BaseModel
-import enum
+from pydantic import BaseModel, EmailStr
 from datetime import datetime
+import enum
 
 # models.py에 있는 StudyField Enum을 여기에서도 사용
 class StudyField(str, enum.Enum):
@@ -10,19 +10,23 @@ class StudyField(str, enum.Enum):
 
 # --- 구독자(Subscriber) 스키마 ---
 
-# 1. 구독자 생성 시 (API 입력) 받을 데이터 모양
-class SubscriberCreate(BaseModel):
-    email: str
-    field: StudyField 
-    # 분야는 선택이 꼭 하나였던가 (개수 제한 뭐였지)
+class EmailRequest(BaseModel): #  인증번호 요청
+    email: EmailStr
 
-# 2. 구독자 정보 응답 시 (API 출력) 보낼 데이터 모양
-class Subscriber(SubscriberCreate):
+class EmailVerify(BaseModel): #  인증번호 검증
+    email: EmailStr
+    code: str
+
+class SubscriberCreate(BaseModel): # 구독자 생성
+    email: EmailStr
+    field: StudyField              # 선택 안하는 경우는 없음 
+
+class SubscriberResponse(BaseModel):  # 구독자 응답
     id: int
+    email: str
+    field: StudyField
     subscribed_at: datetime
 
-    # 이 설정이 Pydantic 모델이 SQLAlchemy 모델(ORM)과
-    # 자동으로 데이터를 주고받게 해줍니다. (필수!)
     class Config:
         orm_mode = True
 
@@ -31,7 +35,7 @@ class Subscriber(SubscriberCreate):
 
 class QuestionCreate(BaseModel):
     content: str
-    field: StudyField | None = None
+    field: StudyField
 
 class Question(QuestionCreate):
     id: int

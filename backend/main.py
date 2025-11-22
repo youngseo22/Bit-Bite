@@ -1,20 +1,29 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
-
-# 우리가 만든 모듈들
-import models
-import schemas # schemas.py
+from typing import List
+import redis
+import random
+import models, schemas 
 from database import engine, SessionLocal 
+from email_utils import send_verification_code
 
-# 2. models.py에 정의된 모든 테이블을 실제 SQLite DB(Postgres DB)에 생성
+# DB 테이블 생성
 models.Base.metadata.create_all(bind=engine) 
 
-# 3. FastAPI 앱 인스턴스 생성
 app = FastAPI()
 
-# --- DB 세션 의존성 주입 ---
-# 이 함수가 API 요청이 올 때마다 SessionLocal()을 호출해
-# 독립적인 DB 세션을 생성하고, API 처리가 끝나면 닫아줍니다.
+# === Redis 연결 ===
+# 우분투 VM 안에서 도커로 띄운 Redis(localhost:6379)에 접속
+# decode_responses=True: 이걸 해야 b'1234'가 아니라 그냥 '1234' 문자열로 나옵니다.
+
+try:
+    rd = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
+    rd.ping() # 연결 테스트
+    print("✅ Redis 연결 성공!")
+except:
+    print("❌ Redis 연결 실패! (도커가 켜져 있는지 확인하세요)")
+
+# DB 세션 의존성 주입 
 def get_db():
     db = SessionLocal()
     try:
@@ -25,44 +34,90 @@ def get_db():
 
 # === API 엔드포인트 ===
 
-@app.post("/subscribers/", response_model=schemas.Subscriber)
-def create_subscriber(
-    subscriber: schemas.SubscriberCreate, # 1. 요청 Body는 SubscriberCreate 스키마를 따름
-    db: Session = Depends(get_db)         # 2. get_db 함수를 통해 DB 세션을 주입받음
-):
-    # Pydantic(schemas) Enum을 SQLAlchemy(models) Enum으로 변환합니다.
+@app.post("/email/request-verification")
+def request_verification(
+    req: schemas.EmailRequest, 
+    background_tasks: BackgroundTasks # 백그라운드 실행 도구
+    ):
+    # 1. 이미 구독한 이메일인지 DB 체크 (우선 생략)
     
-    model_field_enum = None
-    if subscriber.field:
-        # 1. subscriber.field는 schemas.StudyField.BACKEND 객체입니다.
-        # 2. .name을 쓰면 이 객체의 '키' (이름)인 "BACKEND" 문자열을 뽑아옵니다.
-        field_key = subscriber.field.name 
-        
-        # 3. 그 "BACKEND" 문자열로 models.StudyField["BACKEND"]를 찾아
-        #    SQLAlchemy가 알아듣는 models.StudyField.BACKEND 객체를 가져옵니다.
-        model_field_enum = models.StudyField[field_key]
+    # 2. 인증번호 6자리 생성 (1000 ~ 999999)
+    verification_code = str(random.randint(1000, 999999))
     
+    # 3. Redis에 저장 (Key: 이메일, Value: 인증번호) - 5분 유효
+    rd.set(name=req.email, value=verification_code, ex=300)
 
-    # 3. 입력받은 Pydantic 모델(subscriber)을 SQLAlchemy 모델(db_subscriber)로 변환
-    db_subscriber = models.Subscriber(
-        email=subscriber.email, 
-        field=subscriber.field
+    # 4. 백그라운드로 이메일 발송 작업 추가
+    background_tasks.add_task(
+        send_verification_code, 
+        req.email, 
+        verification_code
     )
     
-    # 4. DB 세션에 추가 (아직 DB에 저장된 것 아님)
-    db.add(db_subscriber)
+    # 5. 이메일 발송 함수를 호출
+    print(f"📧 {req.email}의 인증번호: {verification_code}")
+    print(f"📧 [발송 요청] {req.email} (백그라운드 작업 등록됨)")
     
-    # 5. DB에 최종 저장 (Commit)
+    return {"message": "인증번호가 전송되었습니다. 이메일을 확인해주세요."}
+
+
+@app.post("/email/verify-code")
+def verify_code(req: schemas.EmailVerify):
+    # 1. Redis에서 해당 이메일의 코드 가져오기
+    saved_code = rd.get(req.email)
+    
+    # 2. 코드가 없으면 (시간 초과)
+    if not saved_code:
+        raise HTTPException(status_code=400, detail="인증번호가 만료되었거나 없습니다.")
+    
+    # 3. 코드 불일치
+    if saved_code != req.code:
+        raise HTTPException(status_code=400, detail="인증번호가 틀렸습니다.")
+    
+    # 4. Redis에 인증 성공 증표 남기기 (10분 유지)
+    rd.set(name=f"verified:{req.email}", value="true", ex=600) 
+    
+    # 인증번호는 썼으니 삭제
+    rd.delete(req.email)
+    
+    return {"message": "이메일 인증 성공! 이제 분야를 선택해주세요."}
+
+@app.post("/subscribe", response_model=schemas.SubscriberResponse)
+def subscribe(req: schemas.SubscriberCreate, db: Session = Depends(get_db)):
+    # Redis에서 증표 확인
+    is_verified = rd.get(f"verified:{req.email}")
+    
+    if not is_verified:
+        raise HTTPException(status_code=401, detail="이메일 인증이 완료되지 않았습니다.")
+
+    if db.query(models.Subscriber).filter(models.Subscriber.email == req.email).first():
+        raise HTTPException(status_code=400, detail="이미 구독 중입니다.")
+
+    # Enum 변환 및 저장
+    model_field = models.StudyField[req.field.name]
+    
+    new_sub = models.Subscriber(
+        email=req.email,
+        field=model_field
+    )
+    db.add(new_sub)
     db.commit()
+    db.refresh(new_sub)
     
-    # 6. DB에 저장된 최신 데이터를 (id, subscribed_at 포함) 다시 읽어옴
-    db.refresh(db_subscriber)
+    # 증표 삭제 (재사용 방지)
+    rd.delete(f"verified:{req.email}")
     
-    # 7. 생성된 SQLAlchemy 모델 객체를 반환 (FastAPI가 JSON으로 변환)
-    return db_subscriber
+    return new_sub
 
 
 # 기본 루트 API (그대로 둡니다)
 @app.get("/")
 def read_root():
-    return {"Status": "DB 연결 성공 (SQLite)"}
+    return {"Status": "DB 연결 성공"}
+
+
+# === 구독자 목록 조회 API (관리자용) ===
+@app.get("/subscribers", response_model=List[schemas.SubscriberResponse])
+def read_subscribers(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    subscribers = db.query(models.Subscriber).offset(skip).limit(limit).all()
+    return subscribers
