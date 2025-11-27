@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Depends
 from sqlalchemy.orm import Session
+from fastapi.middleware.cors import CORSMiddleware
 
 # 우리가 만든 모듈들
 import models
@@ -11,6 +12,14 @@ models.Base.metadata.create_all(bind=engine)
 
 # 3. FastAPI 앱 인스턴스 생성
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"]
+)
 
 # --- DB 세션 의존성 주입 ---
 # 이 함수가 API 요청이 올 때마다 SessionLocal()을 호출해
