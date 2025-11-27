@@ -3,6 +3,7 @@ import { Hero } from "@/components/Hero";
 import { Features } from "@/components/Features";
 import { SubscriptionConfirmationDialog } from "@/components/SubscriptionConfirmationDialog";
 import { SelectFieldDialog } from "@/components/SelectFieldDialog";
+import { subscribeToNewsletter } from "@/api/api";
 
 export function HomePage() {
   // State for dialogs
@@ -13,6 +14,19 @@ export function HomePage() {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
+
+  const handleSelectFieldSave = async (email: string, field: string) => {
+    try {
+      const response = await subscribeToNewsletter({ email, field });
+      console.log("Subscription successful:", response);
+    } catch (error) {
+      console.error("Subscription failed:", error);
+      alert("구독에 실패했습니다. 다시 시도해주세요.");
+    } finally {
+      setIsSelectFieldDialogOpen(false);
+      setSubmittedEmail("");
+    }
+  };
 
   // Handler for when email is submitted from the Hero section input
   const handleHeroSubscribe = (email: string) => {
@@ -52,6 +66,7 @@ export function HomePage() {
         isOpen={isSelectFieldDialogOpen}
         onOpenChange={setIsSelectFieldDialogOpen}
         email={submittedEmail}
+        onSave={handleSelectFieldSave}
       />
     </>
   );

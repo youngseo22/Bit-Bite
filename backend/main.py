@@ -6,11 +6,20 @@ import random
 import models, schemas 
 from database import engine, SessionLocal 
 from email_utils import send_verification_code
+from fastapi.middleware.cors import CORSMiddleware
 
 # DB 테이블 생성
 models.Base.metadata.create_all(bind=engine) 
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"]
+)
 
 # === Redis 연결 ===
 # 우분투 VM 안에서 도커로 띄운 Redis(localhost:6379)에 접속
