@@ -115,7 +115,7 @@ export function SubscriptionConfirmationDialog({
               <div className="h-5 w-full">
                 {isError && (
                   <div className="text-xs text-red-500 w-full">
-                    인증번호를 입력해주세요.
+                    인증번호는 6자리여야 합니다.
                   </div>
                 )}
                 {isSuccess && (
