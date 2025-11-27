@@ -12,11 +12,14 @@ import {
     isOpen: boolean;
     onOpenChange: (isOpen: boolean) => void;
     email: string;
+    onSave: (email: string, field: string) => void;
   }
   
   export function SelectFieldDialog({
     isOpen,
     onOpenChange,
+    email,
+    onSave,
   }: SelectFieldDialogDialogProps) {
     const [selectedCategory, setSelectedCategory] = useState("인공지능");
     const [agreedToPrivacy, setAgreedToPrivacy] = useState(false);
@@ -29,6 +32,7 @@ import {
     }, [isOpen]);
 
     const handleSave = () => {
+      onSave(email, selectedCategory);
       onOpenChange(false);
     };
   
@@ -53,7 +57,7 @@ import {
                               type="radio"
                               className="absolute opacity-0 w-full h-full cursor-pointer peer"
                               id="react-vertical"
-                              value="인공지능"
+                              value="AI"
                               checked={selectedCategory === "인공지능"}
                               onChange={() => setSelectedCategory("인공지능")}
                             />
@@ -76,7 +80,7 @@ import {
                               type="radio"
                               className="absolute opacity-0 w-full h-full cursor-pointer peer"
                               id="cloud-vertical"
-                              value="클라우드"
+                              value="CLOUD"
                               checked={selectedCategory === "클라우드"}
                               onChange={() => setSelectedCategory("클라우드")}
                             />
@@ -100,8 +104,8 @@ import {
                               className="absolute opacity-0 w-full h-full cursor-pointer peer"
                               id="cs-vertical"
                               value="CS"
-                              checked={selectedCategory === "CS"}
-                              onChange={() => setSelectedCategory("CS")}
+                              checked={selectedCategory === "컴퓨터공학"}
+                              onChange={() => setSelectedCategory("컴퓨터공학")}
                             />
                             <span className="w-3 h-3 rounded-full bg-main opacity-0 peer-checked:opacity-100 transition-opacity duration-200"></span>
                           </div>
@@ -143,4 +147,6 @@ import {
       </Dialog>
     );
   }
+  
+
   
