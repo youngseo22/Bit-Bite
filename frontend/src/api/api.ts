@@ -5,6 +5,35 @@ export const api = ky.create({
     credentials: 'include',
   })
 
+  interface EmailVerificationPayload {
+    email: string;
+  }
+
+  export const emailRequestVerification = async (payload: EmailVerificationPayload) => {
+    try {
+      const response = await api.post('email/request-verification', { json: payload }).json();
+      return response;
+    } catch (error) {
+      console.error('Failed to subscribe:', error);
+      throw error;
+    }
+  };
+
+  interface codeVerificationPayload {
+    email: string;
+    code: string;
+  }
+
+  export const codeVerification = async (payload: codeVerificationPayload) => {
+    try {
+      const response = await api.post('email/verify-code', { json: payload }).json();
+      return response;
+    } catch (error) {
+      console.error('Failed to subscribe:', error);
+      throw error;
+    }
+  };
+
 interface SubscribePayload {
   email: string;
   field: string;
@@ -12,7 +41,7 @@ interface SubscribePayload {
 
 export const subscribeToNewsletter = async (payload: SubscribePayload) => {
   try {
-    const response = await api.post('subscribers/', { json: payload }).json();
+    const response = await api.post('subscribe', { json: payload }).json();
     return response;
   } catch (error) {
     console.error('Failed to subscribe:', error);
