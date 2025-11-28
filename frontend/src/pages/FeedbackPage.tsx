@@ -5,6 +5,7 @@ import { requestFeedback } from '@/api/api';
 
 interface Feedback {
   score: number;
+  model_answer: string[];
   well_done: string[];
   improvements: string[];
   additional_content: string[];
@@ -40,7 +41,7 @@ export function FeedbackPage() {
       return (
         <div className="flex flex-col items-center">
           <Loader2 className="h-12 w-12 mb-5 animate-spin" />
-          <h1 className="text-2xl font-bold">AI가 답변을 분석중입니다...</h1>
+          <h1 className="text-2xl font-bold">AI가 답변을 분석 중입니다...</h1>
         </div>
       );
     }
@@ -55,12 +56,27 @@ export function FeedbackPage() {
     }
 
     if (feedback) {
+      const submissionData = location.state?.submission;
+      const userAnswer = submissionData?.user_answer;
+
       return (
         <div className="w-full max-w-2xl text-left">
-          <h2 className="text-3xl font-bold mb-4 text-center ">피드백 결과</h2>
+          <h2 className="text-3xl font-bold mb-4 text-center ">나의 답변</h2>
+          <div className="border border-gray-200 rounded-lg p-6 mb-6">
+            <p className="text-gray-700 whitespace-pre-wrap">{userAnswer}</p>
+          </div>
+
+          <h2 className="text-3xl font-bold mb-4 mt-10 text-center ">피드백 결과</h2>
           <div className="border border-gray-200 rounded-lg p-6">
             <div className="mb-4 border-b pb-4">
               <p className="text-lg font-semibold text-center">종합 점수: <span className="text-blue-600">{feedback.score}점</span></p>
+            </div>
+
+            <div className="mb-6">
+              <h3 className="font-semibold text-lg mb-2 text-gray-600">모범 답안</h3>
+              <ul className="list-disc list-inside space-y-1 text-gray-700">
+                {feedback.model_answer}
+              </ul>
             </div>
             <div className="mb-6">
               <h3 className="font-semibold text-lg mb-2 text-blue-600">잘한 점</h3>

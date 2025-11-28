@@ -3,7 +3,7 @@ import ky from 'ky'
 export const api = ky.create({
     prefixUrl: import.meta.env.VITE_API_BASE_URL,
     credentials: 'include',
-    timeout: 60000,
+    timeout: 180000,
   })
 
   interface EmailVerificationPayload {
