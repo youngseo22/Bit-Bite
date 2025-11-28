@@ -18,11 +18,11 @@ import redis
 from sqlalchemy import extract, select
 from sqlalchemy.orm import Session
 
-from . import models, schemas
-from .database import engine, SessionLocal
-from .email_utils import send_verification_code
-from .services import analyze_and_feedback, generate_new_question_for_all_tracks, get_question_by_id
-from .utils import get_next_weekday
+import models, schemas
+from database import engine, SessionLocal
+from email_utils import send_verification_code
+from services import analyze_and_feedback, generate_new_question_for_all_tracks, get_question_by_id
+from utils import get_next_weekday
 
 load_dotenv()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="adminLogin")
@@ -51,11 +51,11 @@ app.add_middleware(
 # decode_responses=True: 이걸 해야 b'1234'가 아니라 그냥 '1234' 문자열로 나옵니다.
 
 try:
-    rd = redis.Redis(host='redis', port=6379, db=0, decode_responses=True)
+    rd = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
     rd.ping() # 연결 테스트
     print("✅ Redis 연결 성공!")
-except:
-    print("❌ Redis 연결 실패! (도커가 켜져 있는지 확인하세요)")
+except Exception as e:
+    print(f"❌ Redis 연결 실패! 오류: {e}")
 
 # DB 세션 의존성 주입 
 def get_db():
@@ -277,7 +277,7 @@ def login_for_access_token(
 def request_verification(
     req: schemas.EmailRequest, 
     background_tasks: BackgroundTasks,
-    db = SessionLocal()
+    db: Session = Depends(get_db)
     ):
     # 1. 이미 구독한 이메일인지 DB 체크 
     existing_sub = db.query(models.Subscriber).filter(models.Subscriber.email == req.email).first()

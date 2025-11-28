@@ -4,9 +4,8 @@ from fastapi import HTTPException, status
 from typing import List
 from sqlalchemy.orm import Session
 from sqlalchemy import select 
-import os
 
-from datetime import datetime, timedelta, date
+from datetime import datetime, date
 from utils import get_next_weekday
 
 # DB 모델 및 Pydantic 모델 임포트
