@@ -60,13 +60,12 @@ export function HomePage() {
   const handleSelectFieldSave = async (email: string, field: string) => {
     try {
       await subscribeToNewsletter({ email, field });
+      setIsSelectFieldDialogOpen(false);
       setIsSubscribeCompleteDialogOpen(true);
+      setSubmittedEmail("");
     } catch (error) {
       console.error("Subscription failed:", error);
       alert("구독에 실패했습니다. 다시 시도해주세요.");
-    } finally {
-      setIsSelectFieldDialogOpen(false);
-      setSubmittedEmail("");
     }
   };
 
