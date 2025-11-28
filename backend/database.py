@@ -5,7 +5,7 @@ from sqlalchemy.orm import sessionmaker
 # 1. DB 접속 주소 (PostgreSQL 용)
 # 형식: "postgresql://[사용자이름]:[비밀번호]@[호스트주소]:[포트번호]/[DB이름]"
 # 도커에 PostgressSQL 다운받아 사용
-SQLALCHEMY_DATABASE_URL = "postgresql://postgres:bitbite@localhost:5432/postgres"
+SQLALCHEMY_DATABASE_URL = "postgresql://bitbite_user:1234@localhost:5432/bitbite_db"
 
 # 2. DB 접속 엔진 생성
 engine = create_engine(SQLALCHEMY_DATABASE_URL)

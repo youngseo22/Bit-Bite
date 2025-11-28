@@ -1,8 +1,9 @@
 from dotenv import load_dotenv
 load_dotenv()
 from services import generate_new_question_for_all_tracks, analyze_and_feedback, get_question_by_id
-from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks
+from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, status
 from sqlalchemy.orm import Session
+from sqlalchemy import select, extract
 from typing import List
 import redis
 import random
@@ -10,6 +11,19 @@ import models, schemas
 from database import engine, SessionLocal 
 from email_utils import send_verification_code
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
+from datetime import datetime, timedelta, timezone, date, time
+from jose import JWTError, jwt
+from utils import get_next_weekday
+import os
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="adminLogin")
+
+# JWT 설정 (환경 변수에서 값 로드)
+SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+ALGORITHM = "HS256"
+# ACCESS_TOKEN_EXPIRE_MINUTES는 문자열이므로 정수로 변환, 기본값은 30분
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30)) 
 
 # DB 테이블 생성
 models.Base.metadata.create_all(bind=engine) 
@@ -43,8 +57,213 @@ def get_db():
     finally:
         db.close()
 
+# === JWT 토큰 생성 함수 ===
+def create_access_token(data: dict, expires_delta: timedelta | None = None):
+    """주어진 데이터로 JWT 토큰을 생성합니다."""
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.now(timezone.utc) + expires_delta
+    else:
+        expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+def create_initial_admin(db: Session):
+    """DB에 'admin' 계정이 없으면 'admin'/'010101' 계정을 생성합니다."""
+    admin_user = db.query(models.User).filter(models.User.username == "admin").first()
+    
+    if not admin_user:
+        # models.py의 변경 사항으로 인해, 여기서 반환되는 것은 일반 텍스트 '010101'입니다.
+        password = models.User.create_password("010101")
+        
+        initial_admin = models.User(
+            username="admin",
+            # ⬇️⬇️ 필드 이름을 'password'로 변경합니다. ⬇️⬇️
+            password=password, 
+            # ⬆️⬆️
+            is_admin=True
+        )
+        db.add(initial_admin)
+        db.commit()
+        return True
+    return False
+
+# 1. 현재 사용자 조회 함수 (JWT 토큰 디코딩)
+def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="인증 정보를 확인할 수 없습니다.",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        is_admin: bool = payload.get("is_admin", False)
+        if username is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+    
+    user = db.query(models.User).filter(models.User.username == username).first()
+    if user is None:
+        raise credentials_exception
+    
+    return user
+
+# 2. 관리자 권한 확인 의존성 함수
+def get_current_admin_user(current_user: models.User = Depends(get_current_user)):
+    """현재 로그인된 사용자가 관리자인지 확인합니다."""
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="관리자 권한이 필요합니다."
+        )
+    return current_user
+
+@app.on_event("startup")
+def on_startup():
+    """서버가 시작된 후, 단 한 번 관리자 계정 초기화를 시도합니다."""
+    try:
+        for db_session in get_db():
+            # main.py에 정의된 create_initial_admin 함수 호출
+            if create_initial_admin(db_session): 
+                print("✅ [관리자] 초기 계정 'admin'이 생성되었습니다.")
+            else:
+                print("✅ [관리자] 계정 'admin'이 이미 존재합니다.")
+            break
+    except Exception as e:
+        print(f"❌ [관리자] 계정 생성 중 오류 발생: {e}")
 
 # === API 엔드포인트 ===
+
+@app.get("/admin/questions/month", response_model=List[schemas.QuestionResponse], tags=["Admin"])
+def get_monthly_questions(
+    db: Session = Depends(get_db), 
+    admin_user: models.User = Depends(get_current_admin_user)
+):
+    """
+    [관리자 전용] 현재 달에 스케줄된 모든 질문 목록을 조회합니다.
+    """
+    today = date.today()
+    current_month = today.month
+    current_year = today.year
+
+    # SQLAlchemy v2.0 스타일: 월과 연도를 추출하여 필터링
+    stmt = select(models.Question).where(
+        extract('month', models.Question.daily_question_date) == current_month,
+        extract('year', models.Question.daily_question_date) == current_year
+    )
+    
+    questions = db.execute(stmt).scalars().all()
+    
+    return questions
+
+def check_modification_window(scheduled_date: date):
+    now = datetime.now() 
+    today = now.date()
+    
+    # 1. 현재 시각 기준, '수정해야 할' 질문 날짜(Expected Date) 결정
+    
+    # 07:30 AM 이전: 오늘 날짜가 다음 영업일인 경우, 오늘 질문이 수정 대상
+    if now.time() < time(7, 30):
+        # 예: 월요일 7:20 AM -> 월요일 질문 수정 가능
+        # 예: 일요일 7:20 AM -> (현재 로직에서는 발생하지 않음. 주말은 영업일이 아님)
+        expected_modifiable_date = today
+    # 07:30 AM 이후: 다음 영업일 질문이 수정 대상 (새 윈도우 시작)
+    else:
+        # 예: 금요일 08:00 AM -> 다음 주 월요일 질문이 수정 대상
+        # 예: 월요일 08:00 AM -> 화요일 질문이 수정 대상
+        expected_modifiable_date = get_next_weekday(today) 
+
+    # 1A. 수정하려는 질문의 날짜가 현재 시각에 허용된 대상인지 확인
+    if scheduled_date != expected_modifiable_date:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"현재 시각 ({now.strftime('%H:%M')})에 수정 가능한 질문은 {expected_modifiable_date} 질문뿐입니다."
+        )
+
+    # 2. 수정 시간 윈도우 정의 (주말 확장 로직 적용)
+    
+    # 질문이 월요일(0)에 스케줄된 경우: 윈도우 시작은 직전 금요일 8:00 AM
+    if scheduled_date.weekday() == 0:
+        # 월요일 질문의 시작일은 3일 전인 금요일
+        window_start_date = scheduled_date - timedelta(days=3) 
+    # 질문이 화~금에 스케줄된 경우: 윈도우 시작은 직전 영업일 8:00 AM
+    else:
+        # 화요일 질문의 시작일은 1일 전인 월요일
+        window_start_date = scheduled_date - timedelta(days=1)
+        
+    # 윈도우 시작: 시작 날짜 8:00 AM
+    window_start = datetime.combine(window_start_date, time(8, 0))
+    # 윈도우 종료: 질문 당일 7:30 AM
+    window_end = datetime.combine(scheduled_date, time(7, 30))
+
+    # 3. 현재 시각이 윈도우 안에 있는지 확인
+    if not (window_start <= now <= window_end):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"질문 수정 가능 시간이 아닙니다. 수정 가능 시간: {window_start.strftime('%Y-%m-%d %H:%M')} ~ {window_end.strftime('%Y-%m-%d %H:%M')}"
+        )
+    # 윈도우 내에 있으면 통과
+
+@app.put("/admin/questions/next-day/{question_id}", tags=["Admin"])
+def modify_next_day_question(
+    question_id: int,
+    modification: schemas.QuestionModify,
+    db: Session = Depends(get_db), 
+    admin_user: models.User = Depends(get_current_admin_user)
+):
+    """
+    [관리자 전용] 다음날 질문(오전 8시 ~ 익일 오전 7시 30분 윈도우)의 내용을 수정합니다.
+    """
+    # 1. 질문 조회 
+    question = db.query(models.Question).filter(models.Question.id == question_id).first()
+    
+    if not question:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="질문을 찾을 수 없습니다.")
+
+    # 2. 시간 및 날짜 제약 조건 확인
+    check_modification_window(question.daily_question_date) 
+
+    # 3. 수정 적용
+    question.content = modification.new_content
+    db.commit()
+    db.refresh(question)
+    
+    return {"message": f"질문 #{question.id} 내용이 성공적으로 수정되었습니다."}
+
+# === 0. 관리자 로그인 API ===
+@app.post("/adminLogin", response_model=schemas.Token)
+def login_for_access_token(
+    form_data: OAuth2PasswordRequestForm = Depends(), # ID/PW를 Form 데이터로 받음
+    db: Session = Depends(get_db)
+):
+    """관리자 로그인 및 JWT 토큰 발급"""
+    # 1. DB에서 사용자 조회
+    user = db.query(models.User).filter(
+        models.User.username == form_data.username
+    ).first()
+
+    # 2. 사용자 없거나 비밀번호 불일치 확인
+    if not user or not user.verify_password(form_data.password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    # 3. 관리자 권한 확인
+    if not user.is_admin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized for admin access")
+
+    # 4. JWT 토큰 생성
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.username, "is_admin": user.is_admin},
+        expires_delta=access_token_expires
+    )
+    return {"access_token": access_token}
 
 @app.post("/email/request-verification")
 def request_verification(
