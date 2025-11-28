@@ -32,7 +32,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["http://localhost:8080", "http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"]
@@ -43,7 +43,7 @@ app.add_middleware(
 # decode_responses=True: 이걸 해야 b'1234'가 아니라 그냥 '1234' 문자열로 나옵니다.
 
 try:
-    rd = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
+    rd = redis.Redis(host='redis', port=6379, db=0, decode_responses=True)
     rd.ping() # 연결 테스트
     print("✅ Redis 연결 성공!")
 except:

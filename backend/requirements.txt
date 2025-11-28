@@ -6,3 +6,5 @@ psycopg2-binary
 redis
 fastapi-mail
 google-genai
+apscheduler
+httpx
