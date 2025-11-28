@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 
 import models, schemas
 from database import engine, SessionLocal
-from email_utils import send_verification_code
+from email_utils import send_verification_code, send_daily_question
 from services import analyze_and_feedback, generate_new_question_for_all_tracks, get_question_by_id
 from utils import get_next_weekday
 
@@ -430,7 +430,8 @@ async def send_daily_questions(
     for sub in subscribers: 
         question = db.query(models.Question).filter(
             models.Question.field == sub.field,
-            models.Question.daily_question_date == today_date
+            # models.Question.daily_question_date == today_date
+            models.Question.daily_question_date == "2025-12-01"
         ).first()
         
         if question: 
@@ -438,7 +439,9 @@ async def send_daily_questions(
             background_tasks.add_task(
                 send_daily_question,           
                 sub.email,                     
-                question_content_for_email     # 이메일 내용 (질문 내용)
+                question_content_for_email, 
+                sub.field.name.lower(),         
+                question.daily_question_date.isoformat()
             )
             
             sent_count += 1
