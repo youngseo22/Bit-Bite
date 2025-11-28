@@ -49,9 +49,14 @@ def get_db():
 @app.post("/email/request-verification")
 def request_verification(
     req: schemas.EmailRequest, 
-    background_tasks: BackgroundTasks # 백그라운드 실행 도구
+    background_tasks: BackgroundTasks,
+    db = SessionLocal()
     ):
-    # 1. 이미 구독한 이메일인지 DB 체크 (우선 생략)
+    # 1. 이미 구독한 이메일인지 DB 체크 
+    existing_sub = db.query(models.Subscriber).filter(models.Subscriber.email == req.email).first()
+
+    if existing_sub:
+        raise HTTPException(status_code=400, detail="이미 구독 중인 이메일입니다.")
     
     # 2. 인증번호 6자리 생성 (1000 ~ 999999)
     verification_code = str(random.randint(1000, 999999))
@@ -59,7 +64,7 @@ def request_verification(
     # 3. Redis에 저장 (Key: 이메일, Value: 인증번호) - 5분 유효
     rd.set(name=req.email, value=verification_code, ex=300)
 
-    # 4. 백그라운드로 이메일 발송 작업 추가
+    # 4. 백그라운드로 이메일 발송
     background_tasks.add_task(
         send_verification_code, 
         req.email, 
@@ -67,8 +72,7 @@ def request_verification(
     )
     
     # 5. 이메일 발송 함수를 호출
-    print(f"📧 {req.email}의 인증번호: {verification_code}")
-    print(f"📧 [발송 요청] {req.email} (백그라운드 작업 등록됨)")
+    print(f"📧 [발송 요청] {req.email}")
     
     return {"message": "인증번호가 전송되었습니다. 이메일을 확인해주세요."}
 
