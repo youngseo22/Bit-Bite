@@ -1,6 +1,20 @@
 import enum 
-from sqlalchemy import Column, Integer, String, DateTime, Date, Enum, Text, func
-from database import Base 
+from sqlalchemy import Column, Integer, String, DateTime, Date, Enum, Text, func, Boolean
+from database import Base
+
+class User(Base):
+    __tablename__ = "users"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, unique=True, index=True, nullable=False)
+    password = Column(String(256), nullable=False) 
+    is_admin = Column(Boolean, default=False)
+    @classmethod
+    def create_password(cls, password: str):
+        return password 
+
+    def verify_password(self, input_password: str):
+        return input_password == self.password
 
 # 'StudyField' Domain을 파이썬 Enum으로 정의
 class StudyField(enum.Enum):

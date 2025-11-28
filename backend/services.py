@@ -5,8 +5,12 @@ from typing import List
 from sqlalchemy.orm import Session
 from sqlalchemy import select 
 import os
-from datetime import datetime, timedelta
-from models import Question, StudyField 
+
+from datetime import datetime, timedelta, date
+from utils import get_next_weekday
+
+# DB 모델 및 Pydantic 모델 임포트
+from models import Question, StudyField, User 
 from schemas import FeedbackResult, AnswerSubmission 
 
 
@@ -53,8 +57,8 @@ def save_new_question_to_db(db: Session, track: StudyField, question_text: str, 
 # ----------------------------------------------------
 # DB 쿼리 함수가 동기식이지만, FastAPI의 비동기 환경 유지를 위해 async def 유지
 async def generate_new_question_for_all_tracks(db: Session): 
-
-    tomorrow_date = datetime.now().date() + timedelta(days=1)
+    today = date.today()
+    scheduled_date = get_next_weekday(today)
     
     TRACKS = [StudyField.CS, StudyField.AI, StudyField.CLOUD] 
     
@@ -87,7 +91,7 @@ async def generate_new_question_for_all_tracks(db: Session):
             new_question = response.text.strip()
             
             # DB에 저장
-            save_new_question_to_db(db, track, new_question, tomorrow_date)
+            save_new_question_to_db(db, track, new_question, scheduled_date)
             
         except Exception as e:
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="AI 질문 생성 실패")
