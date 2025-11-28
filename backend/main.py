@@ -1,6 +1,6 @@
 from dotenv import load_dotenv
 load_dotenv()
-from services import generate_new_question_for_all_tracks, analyze_and_feedback
+from services import generate_new_question_for_all_tracks, analyze_and_feedback, get_question_by_id
 from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import List
@@ -132,11 +132,37 @@ async def handle_question_generation(db: Session = Depends(get_db)):
 
 # === AI API: 2. 답변 제출 및 피드백 (사용자 요청) ===
 @app.post("/feedback", response_model=schemas.FeedbackResult)
-async def submit_answer(submission: schemas.AnswerSubmission):
-    """사용자 답변을 받아 AI 분석 후 실시간 피드백을 JSON으로 반환합니다."""
-    # 이 함수는 DB 접근이 불필요하므로 DB 세션을 주입하지 않습니다.
-    feedback = await analyze_and_feedback(submission)
+async def submit_answer(
+    submission: schemas.AnswerSubmission, 
+    db: Session = Depends(get_db) # DB 세션 주입 추가
+):
+    """
+    사용자 답변을 받아 question_id로 DB에서 질문을 조회 후, 
+    AI 분석을 요청하고 실시간 피드백을 JSON으로 반환합니다.
+    """
+    
+    # 1. question_id로 DB에서 질문 조회
+    # (services.py에 정의된 동기 함수 호출)
+    question_obj = get_question_by_id(db, submission.question_id)
+    
+    # 2. AI 분석 및 피드백 함수 호출
+    # (조회된 질문 내용과 분야, 그리고 사용자 답변을 전달)
+    feedback = await analyze_and_feedback(
+        question_text=question_obj.content,
+        field=question_obj.field,
+        user_answer=submission.user_answer
+    )
+    
     return feedback
+
+# === AI API: 3. 질문 ID 조회 (사용자 요청) ===
+@app.get("/questions/{question_id}", response_model=schemas.Question)
+def read_question(question_id: int, db: Session = Depends(get_db)):
+    """ID로 AI 질문 내용을 조회합니다."""
+    # services.py에서 정의한 함수를 사용하여 DB 접근
+    question = get_question_by_id(db, question_id)
+    
+    return question
 
 
 # 기본 루트 API (그대로 둡니다)

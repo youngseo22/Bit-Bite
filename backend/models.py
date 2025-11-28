@@ -24,4 +24,4 @@ class Question(Base):
     id = Column(Integer, primary_key=True, index=True)
     content = Column(Text, nullable=False)
     field = Column(Enum(StudyField, values_callable=lambda obj: [e.value for e in obj]))
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    daily_question_date = Column(Date, index=True, nullable=False)
