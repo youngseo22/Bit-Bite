@@ -430,8 +430,8 @@ async def send_daily_questions(
     for sub in subscribers: 
         question = db.query(models.Question).filter(
             models.Question.field == sub.field,
-            # models.Question.daily_question_date == today_date
-            models.Question.daily_question_date == "2025-12-01"
+            models.Question.daily_question_date == today_date
+            # models.Question.daily_question_date == "2025-12-01"
         ).first()
         
         if question: 
