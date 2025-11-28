@@ -5,7 +5,6 @@ import {
     DialogHeader,
     DialogTitle
   } from "@/components/ui/dialog";
-  import { Button } from "@/components/ui/button";
   import { useRef } from "react";
   
   interface SubscribeCompleteDialogProps {

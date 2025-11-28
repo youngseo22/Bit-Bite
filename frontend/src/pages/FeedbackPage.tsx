@@ -101,7 +101,6 @@ export function FeedbackPage() {
       );
     }
 
-    // This case should ideally not be reached if error handling is correct.
     return (
         <div className="text-center">
             <h2 className="text-2xl font-bold mb-4">피드백을 불러올 수 없습니다.</h2>

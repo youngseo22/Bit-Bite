@@ -61,7 +61,7 @@ import {
                               type="radio"
                               className="absolute opacity-0 w-full h-full cursor-pointer peer"
                               id="react-vertical"
-                              value="AI" // Value for backend, but we store Korean string in state
+                              value="인공지능"
                               checked={selectedCategory === "인공지능"}
                               onChange={() => handleCategoryChange("인공지능")}
                             />
@@ -84,7 +84,7 @@ import {
                               type="radio"
                               className="absolute opacity-0 w-full h-full cursor-pointer peer"
                               id="cloud-vertical"
-                              value="CLOUD" // Value for backend, but we store Korean string in state
+                              value="클라우드"
                               checked={selectedCategory === "클라우드"}
                               onChange={() => handleCategoryChange("클라우드")}
                             />
@@ -107,7 +107,7 @@ import {
                               type="radio"
                               className="absolute opacity-0 w-full h-full cursor-pointer peer"
                               id="cs-vertical"
-                              value="CS" // Value for backend, but we store Korean string in state
+                              value="컴퓨터공학"
                               checked={selectedCategory === "컴퓨터공학"}
                               onChange={() => handleCategoryChange("컴퓨터공학")}
                             />
