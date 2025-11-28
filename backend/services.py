@@ -68,9 +68,21 @@ async def generate_new_question_for_all_tracks(db: Session):
         previous_questions = get_previous_questions_from_db(db, track)
         
         # 프롬프트 구성: 중복 방지 요청 포함
-        prompt = f"""당신은 기술 면접관 AI입니다. 기술 분야 '{track.value}'에 대한 심층 기술 면접 질문 1개를 생성하세요.
-        이전 질문 이력: {', '.join(previous_questions)}
-        이전 질문과 중복되지 않으며, 학습자의 설명 능력을 평가할 수 있어야 합니다. 질문만 명확하게 출력하세요."""
+        prompt = f"""
+            당신은 10년 차 시니어 개발자 면접관입니다.
+            지원자의 기술 스택 '{track.value}'에 대해 실무 역량을 검증할 수 있는 **심층 기술 면접 질문 1개**를 생성하세요.
+
+            [제약 사항]
+            1. **길이 제한:** 사용자가 5분 안에 답변해야 하므로, 질문은 **반드시 200자 이내의 세 문장 이내**로 간결하게 작성하세요.
+            2. **난이도:** 실무 1~3년 차(Junior-Mid) 수준에 맞춰, 단순 정의보다는 '원리', '트러블슈팅', '사용 이유(Why)'를 묻는 질문을 우선시하세요.
+            3. **중복 방지:** 다음 이전 질문들과 중복되지 않게 하세요: [{', '.join(previous_questions)}]
+            4. **형식:** 질문은 한국어로 작성하며, 구체적인 상황을 가정하거나 예시를 들어도 좋습니다.
+            5. **출력:** 서론, 부연 설명, 따옴표 없이 **오직 질문 텍스트 한 문장(또는 두 문장)**만 출력하세요.
+
+            질문 예시:
+            - (나쁜 예) Virtual DOM이 무엇인가요?
+            - (좋은 예) Virtual DOM이 실제 DOM보다 빠르다고 하는 이유는 무엇이며, 항상 더 빠를까요?
+        """
         
         try:
             # Gemini API 호출
@@ -95,18 +107,32 @@ async def analyze_and_feedback(question_text: str, field: StudyField, user_answe
     track_value_str = str(field.name) # Enum의 이름(CS, AI 등)을 사용
     
     # 프롬프트: JSON 형식 요청
-    prompt = f"""당신은 기술 면접관 AI입니다. 질문: {question_text} (분야: {track_value_str}) 
-    사용자 답변: {user_answer}
-    분석 항목: 핵심 키워드, 기술적 정확성, 논리성. 
+    prompt = f"""
+    당신은 10년 차 시니어 개발자이자 냉철한 기술 면접관 AI입니다. 
+    제공된 정보를 바탕으로 지원자의 답변을 평가하세요.
 
-    **중요 지침:** 생성하는 모든 텍스트(특히 JSON 배열 내부의 문자열)에는 **불필요한 강조 기호(*, **) 또는 개행 문자(\n)를 절대 포함하지 마세요.**
+    [면접 정보]
+    - 질문: {question_text}
+    - 기술 분야: {track_value_str}
+    - 사용자 답변: {user_answer}
+
+    [평가 기준]
+    1. 핵심 키워드 포함 여부
+    2. 기술적 정확성 (오개념이 없는지)
+    3. 두괄식 답변 및 논리적 구조
+
+    [지침]
+    1. **JSON 포맷 준수:** 출력은 오직 순수한 JSON 문자열이어야 합니다. 마크다운 코드 블록(```json)을 사용하지 마세요.
+    2. **강조 기호 금지:** JSON 값 내부의 텍스트에 볼드체(**)나 기울임꼴(*) 등의 마크다운 문법을 절대 사용하지 마세요.
+    3. **언어:** 모든 피드백 내용은 '한국어'로 작성하세요.
     
-    피드백을 엄격히 다음 **JSON 형식(영어 키 사용)**으로 제공:
+    [출력 형식 (JSON)]
     {{ 
-      "score": <점수 (0-100)>,
-      "well_done": ["..."], 
-      "improvements": ["..."], 
-      "additional_content": ["..."] 
+      "score": <점수 (0-100, 정수)>,
+      "model_answer": <300자 이내의 당신이 생각하는 가장 이상적이고 간결한 모범 답안>,
+      "well_done": [<잘한 점 1>, <잘한 점 2>],
+      "improvements": [<구체적인 개선점 1>, <개선점 2>], 
+      "additional_content": [<답변을 보강하기 위해 공부하면 좋은 개념이나 링크 키워드>]
     }}"""
     try:
         response = gemini_client.models.generate_content(

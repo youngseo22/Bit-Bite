@@ -1,5 +1,5 @@
 import enum 
-from sqlalchemy import Column, Integer, String, DateTime, Enum, Text, func
+from sqlalchemy import Column, Integer, String, DateTime, Date, Enum, Text, func
 from database import Base # database.py에서 만든 Base 클래스를 가져옵니다.
 
 # 'StudyField' Domain을 파이썬 Enum으로 정의
