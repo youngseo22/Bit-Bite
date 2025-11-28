@@ -3,6 +3,7 @@ import ky from 'ky'
 export const api = ky.create({
     prefixUrl: import.meta.env.VITE_API_BASE_URL,
     credentials: 'include',
+    timeout: 60000,
   })
 
   interface EmailVerificationPayload {
@@ -14,7 +15,7 @@ export const api = ky.create({
       const response = await api.post('email/request-verification', { json: payload }).json();
       return response;
     } catch (error) {
-      console.error('Failed to subscribe:', error);
+      console.error('Failed to request verification:', error);
       throw error;
     }
   };
@@ -29,7 +30,7 @@ export const api = ky.create({
       const response = await api.post('email/verify-code', { json: payload }).json();
       return response;
     } catch (error) {
-      console.error('Failed to subscribe:', error);
+      console.error('Failed to verify code:', error);
       throw error;
     }
   };
@@ -45,6 +46,41 @@ export const subscribeToNewsletter = async (payload: SubscribePayload) => {
     return response;
   } catch (error) {
     console.error('Failed to subscribe:', error);
+    throw error;
+  }
+};
+
+export const getQuestion = async (question_id: number) => {
+  try {
+    const response = await api.get(`questions/${question_id}`).json();
+    return response;
+  } catch (error) {
+    console.error('Failed to feedback:', error);
+    throw error;
+  }
+};
+
+export const generateQuestion = async () => {
+  try {
+    const response = await api.post('generate-question').json();
+    return response;
+  } catch (error) {
+    console.error('Failed to question generate:', error);
+    throw error;
+  }
+};
+
+interface feedbackPayload {
+  question_id: number;
+  user_answer: string;
+}
+
+export const requestFeedback = async (payload: feedbackPayload) => {
+  try {
+    const response = await api.post('feedback', { json: payload }).json();
+    return response;
+  } catch (error) {
+    console.error('Failed to feedback:', error);
     throw error;
   }
 };

@@ -9,7 +9,7 @@ function App() {
     <Routes>
       <Route path="/" element={<Layout />}>
         <Route index element={<HomePage />} />
-        <Route path="question/:category/:day" element={<QuestionPage />} />
+        <Route path="question/:id" element={<QuestionPage />} />
         <Route path="feedback" element={<FeedbackPage />} />
       </Route>
     </Routes>
