@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: bitbite_db
+    restart: always
+    environment:
+      POSTGRES_USER: bitbite_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: bitbite_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+  
+  backend:
+    build: 
+      context: ./backend
+    container_name: bitbite_backend
+    restart: always
+    
+    depends_on:
+      - db
+      
+    environment:
+      DB_HOST: db              
+      DB_PORT: 5432
+      DB_USER: bitbite_user
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: bitbite_db
+      
+      GEMINI_API_KEY: ${GEMINI_API_KEY} 
+      
+    ports:
+      - "8000:8000"
+      
+    volumes:
+      - ./backend:/app
+    
+  frontend:
+    build:
+      context: ./frontend
+    container_name: bitbite_frontend
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "3000:80" 
+    volumes:
+      - ./frontend:/app
+  
+  scheduler:
+    build:
+      context: ./backend
+    container_name: bitbite_scheduler
+    restart: always
+    depends_on:
+      - db 
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: bitbite_user
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: bitbite_db
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+    
+    command: /usr/local/bin/python /app/scheduler_runner.py
+
+volumes:
+  postgres_data:
