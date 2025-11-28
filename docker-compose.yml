@@ -13,6 +13,12 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:alpine
+    container_name: bitbite_redis
+    ports:
+      - "6379:6379"
   
   backend:
     build: 
@@ -22,14 +28,15 @@ services:
     
     depends_on:
       - db
-      
+      - redis
+
     environment:
       DB_HOST: db              
       DB_PORT: 5432
       DB_USER: bitbite_user
       DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: bitbite_db
-      
+      REDIS_URL: redis://redis:6379
       GEMINI_API_KEY: ${GEMINI_API_KEY} 
       
     ports:
@@ -46,7 +53,7 @@ services:
     depends_on:
       - backend
     ports:
-      - "3000:80" 
+      - "8080:8080" 
     volumes:
       - ./frontend:/app
   
