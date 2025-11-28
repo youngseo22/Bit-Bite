@@ -52,6 +52,7 @@ class AnswerSubmission(BaseModel):
 # --- 피드백(Feedback) 스키마 ---
 class FeedbackResult(BaseModel):
     score: int = Field(..., ge=0, le=100, description="면접관 AI가 부여한 0에서 100 사이의 점수")
+    model_answer: str             # 모범 답안
     well_done: list[str]          # 잘된 점
     improvements: list[str]       # 개선할 점
     additional_content: list[str] # 추가하면 좋은 내용
