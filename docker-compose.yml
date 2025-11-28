@@ -6,9 +6,9 @@ services:
     container_name: bitbite_db
     restart: always
     environment:
-      POSTGRES_USER: bitbite_user
+      POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: bitbite_db
+      POSTGRES_DB: ${DB_NAME}
     ports:
       - "5432:5432"
     volumes:
@@ -19,7 +19,7 @@ services:
     container_name: bitbite_redis
     ports:
       - "6379:6379"
-  
+
   backend:
     build: 
       context: ./backend
@@ -31,23 +31,33 @@ services:
       - redis
 
     environment:
-      DB_HOST: db              
+      TZ: Asia/Seoul
+      DB_HOST: db 
       DB_PORT: 5432
-      DB_USER: bitbite_user
+      DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
-      DB_NAME: bitbite_db
+      DB_NAME: ${DB_NAME}
       REDIS_URL: redis://redis:6379
       GEMINI_API_KEY: ${GEMINI_API_KEY} 
+      MAIL_USERNAME: ${MAIL_USERNAME}
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
+      MAIL_FROM: ${MAIL_FROM}
+      MAIL_PORT: ${MAIL_PORT}
+      MAIL_SERVER: smtp.gmail.com 
+      MAIL_FROM_NAME: BitBite
       
     ports:
       - "8000:8000"
       
     volumes:
       - ./backend:/app
-    
+
   frontend:
     build:
       context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: http://localhost:8000
     container_name: bitbite_frontend
     restart: always
     depends_on:
@@ -56,7 +66,7 @@ services:
       - "8080:8080" 
     volumes:
       - ./frontend:/app
-  
+
   scheduler:
     build:
       context: ./backend
@@ -64,15 +74,29 @@ services:
     restart: always
     depends_on:
       - db 
+      - redis
     environment:
+      PYTHONUNBUFFERED: 1
+      TZ: Asia/Seoul
       DB_HOST: db
       DB_PORT: 5432
-      DB_USER: bitbite_user
+      DB_USER: ${DB_USER} 
       DB_PASSWORD: ${DB_PASSWORD}
-      DB_NAME: bitbite_db
+      DB_NAME: ${DB_NAME}
+      REDIS_URL: redis://redis:6379
       GEMINI_API_KEY: ${GEMINI_API_KEY}
+      
+      MAIL_USERNAME: ${MAIL_USERNAME}
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
+      MAIL_FROM: ${MAIL_FROM}
+      MAIL_PORT: ${MAIL_PORT}
+      MAIL_SERVER: smtp.gmail.com
+      MAIL_FROM_NAME: BitBite
     
     command: /usr/local/bin/python /app/scheduler_runner.py
+
+    volumes:
+      - ./backend:/app
 
 volumes:
   postgres_data:
