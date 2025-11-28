@@ -1,16 +1,11 @@
-# services.py
-
 from google import genai
 from google.genai import types
 from fastapi import HTTPException, status
 from typing import List
 from sqlalchemy.orm import Session
-from sqlalchemy import select  # SQLAlchemy 2.0 쿼리 사용을 위해 필요
+from sqlalchemy import select 
 import os
-
 from datetime import datetime, timedelta
-
-# DB 모델 및 Pydantic 모델 임포트
 from models import Question, StudyField 
 from schemas import FeedbackResult, AnswerSubmission 
 

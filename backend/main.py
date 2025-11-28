@@ -1,15 +1,23 @@
-from dotenv import load_dotenv
-load_dotenv()
-from services import generate_new_question_for_all_tracks, analyze_and_feedback, get_question_by_id
-from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks
-from sqlalchemy.orm import Session
-from typing import List
-import redis
 import random
-import models, schemas 
-from database import engine, SessionLocal 
-from email_utils import send_verification_code
+from datetime import datetime, date, timedelta
+from typing import List
+
+from dotenv import load_dotenv
+from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+import redis
+from sqlalchemy.orm import Session
+
+import models, schemas
+from database import engine, SessionLocal
+from email_utils import send_verification_code
+from services import (
+    analyze_and_feedback, 
+    generate_new_question_for_all_tracks, 
+    get_question_by_id
+)
+
+load_dotenv()
 
 # DB 테이블 생성
 models.Base.metadata.create_all(bind=engine) 
@@ -79,14 +87,11 @@ def request_verification(
 
 @app.post("/email/verify-code")
 def verify_code(req: schemas.EmailVerify):
-    # 1. Redis에서 해당 이메일의 코드 가져오기
     saved_code = rd.get(req.email)
     
-    # 2. 코드가 없으면 (시간 초과)
     if not saved_code:
         raise HTTPException(status_code=400, detail="인증번호가 만료되었거나 없습니다.")
     
-    # 3. 코드 불일치
     if saved_code != req.code:
         raise HTTPException(status_code=400, detail="인증번호가 틀렸습니다.")
     
@@ -138,7 +143,7 @@ async def handle_question_generation(db: Session = Depends(get_db)):
 @app.post("/feedback", response_model=schemas.FeedbackResult)
 async def submit_answer(
     submission: schemas.AnswerSubmission, 
-    db: Session = Depends(get_db) # DB 세션 주입 추가
+    db: Session = Depends(get_db) 
 ):
     """
     사용자 답변을 받아 question_id로 DB에서 질문을 조회 후, 
@@ -168,8 +173,34 @@ def read_question(question_id: int, db: Session = Depends(get_db)):
     
     return question
 
+# === scheduler API : 1. 질문 삭제 === : 매월 마지막 날 실행
+@app.delete("/delete-old-questions")
+async def delete_old_questions(db: Session = Depends(get_db)):
+    today = date.today()
+    current_year = today.year
+    current_month = today.month
 
-# 기본 루트 API (그대로 둡니다)
+    start_of_month = today.replace(day=1)
+
+    if current_month == 12:
+        start_of_next_month = date(current_year + 1, 1, 1)
+    else:
+        start_of_next_month = today.replace(month=current_month + 1, day=1)
+    
+    deleted_count = db.query(models.Question).filter(
+        models.Question.daily_question_date >= start_of_month,
+        models.Question.daily_question_date < start_of_next_month
+    ).delete()
+    
+    db.commit()
+    
+    month_display = f"{current_year}년 {current_month}월"
+    return {"message": f"{month_display}에 해당하는 질문 {deleted_count}개가 삭제되었습니다."}
+
+
+
+
+# === 기본 루트 API ===
 @app.get("/")
 def read_root():
     return {"Status": "DB 연결 성공"}
