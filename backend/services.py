@@ -46,6 +46,8 @@ def save_new_question_to_db(db: Session, track: StudyField, question_text: str):
     db.add(new_question)
     db.commit()
     db.refresh(new_question)
+
+
     
 # ----------------------------------------------------
 # 2. AI 질문 생성 로직 (CronJob 호출용)
@@ -81,14 +83,14 @@ async def generate_new_question_for_all_tracks(db: Session):
 # ----------------------------------------------------
 # 3. AI 답변 분석 및 피드백 로직 (실시간 사용자 요청)
 # ----------------------------------------------------
-async def analyze_and_feedback(submission: AnswerSubmission) -> FeedbackResult:
-    """사용자 답변을 분석하고 JSON 형식의 피드백을 실시간으로 생성"""
+async def analyze_and_feedback(question_text: str, field: StudyField, user_answer: str) -> FeedbackResult:
+    """조회된 질문과 사용자 답변을 받아 AI 분석 후 실시간 피드백을 JSON으로 생성"""
 
-    track_value_str = str(submission.field)
+    track_value_str = str(field.name) # Enum의 이름(CS, AI 등)을 사용
     
     # 프롬프트: JSON 형식 요청
-    prompt = f"""당신은 기술 면접관 AI입니다. 질문: {submission.question_text} (분야: {track_value_str}) 
-    사용자 답변: {submission.user_answer}
+    prompt = f"""당신은 기술 면접관 AI입니다. 질문: {question_text} (분야: {track_value_str}) 
+    사용자 답변: {user_answer}
     분석 항목: 핵심 키워드, 기술적 정확성, 논리성. 
     
     피드백을 엄격히 다음 **JSON 형식(영어 키 사용)**으로 제공:
@@ -108,9 +110,28 @@ async def analyze_and_feedback(submission: AnswerSubmission) -> FeedbackResult:
         return FeedbackResult.parse_raw(response.text)
 
     except Exception as e:
-        print(f"FATAL AI PARSING ERROR: {e}") 
+        print(f"FATAL AI PROCESSING ERROR: {e}") 
         
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="AI 피드백 처리 중 오류가 발생했습니다."
         )
+
+    
+def get_question_by_id(db: Session, question_id: int) -> Question:
+    """ID로 특정 질문 객체를 조회합니다."""
+    
+    # 2.0 스타일: select(Question) 전체를 조회하고, where로 필터링
+    stmt = select(Question).where(Question.id == question_id)
+    
+    # first() 대신 scalar_one_or_none()을 사용하여 결과를 가져오고, 
+    # 결과가 없으면 None을 반환합니다.
+    question = db.execute(stmt).scalar_one_or_none()
+    
+    if question is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail="Question not found"
+        )
+        
+    return question
