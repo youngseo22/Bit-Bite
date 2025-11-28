@@ -1,14 +1,11 @@
-# services.py
-
 from google import genai
 from google.genai import types
 from fastapi import HTTPException, status
 from typing import List
 from sqlalchemy.orm import Session
-from sqlalchemy import select  # SQLAlchemy 2.0 쿼리 사용을 위해 필요
-import os
+from sqlalchemy import select 
 
-from datetime import datetime, timedelta, date
+from datetime import datetime, date
 from utils import get_next_weekday
 
 # DB 모델 및 Pydantic 모델 임포트

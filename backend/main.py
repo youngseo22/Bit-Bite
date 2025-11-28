@@ -1,22 +1,30 @@
-from dotenv import load_dotenv
-load_dotenv()
-from services import generate_new_question_for_all_tracks, analyze_and_feedback, get_question_by_id
-from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, status
-from sqlalchemy.orm import Session
-from sqlalchemy import select, extract
-from typing import List
-import redis
-import random
-import models, schemas 
-from database import engine, SessionLocal 
-from email_utils import send_verification_code
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
-from datetime import datetime, timedelta, timezone, date, time
-from jose import JWTError, jwt
-from utils import get_next_weekday
 import os
+import random
+from datetime import date, datetime, timedelta, time, timezone
+from typing import List
 
+from dotenv import load_dotenv
+from fastapi import (
+    BackgroundTasks, 
+    Depends, 
+    FastAPI, 
+    HTTPException, 
+    status
+)
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from jose import JWTError, jwt
+import redis
+from sqlalchemy import extract, select
+from sqlalchemy.orm import Session
+
+import models, schemas
+from database import engine, SessionLocal
+from email_utils import send_verification_code, send_daily_question
+from services import analyze_and_feedback, generate_new_question_for_all_tracks, get_question_by_id
+from utils import get_next_weekday
+
+load_dotenv()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="adminLogin")
 
 # JWT 설정 (환경 변수에서 값 로드)
@@ -43,11 +51,11 @@ app.add_middleware(
 # decode_responses=True: 이걸 해야 b'1234'가 아니라 그냥 '1234' 문자열로 나옵니다.
 
 try:
-    rd = redis.Redis(host='redis', port=6379, db=0, decode_responses=True)
+    rd = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
     rd.ping() # 연결 테스트
     print("✅ Redis 연결 성공!")
-except:
-    print("❌ Redis 연결 실패! (도커가 켜져 있는지 확인하세요)")
+except Exception as e:
+    print(f"❌ Redis 연결 실패! 오류: {e}")
 
 # DB 세션 의존성 주입 
 def get_db():
@@ -268,9 +276,14 @@ def login_for_access_token(
 @app.post("/email/request-verification")
 def request_verification(
     req: schemas.EmailRequest, 
-    background_tasks: BackgroundTasks # 백그라운드 실행 도구
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
     ):
-    # 1. 이미 구독한 이메일인지 DB 체크 (우선 생략)
+    # 1. 이미 구독한 이메일인지 DB 체크 
+    existing_sub = db.query(models.Subscriber).filter(models.Subscriber.email == req.email).first()
+
+    if existing_sub:
+        raise HTTPException(status_code=400, detail="이미 구독 중인 이메일입니다.")
     
     # 2. 인증번호 6자리 생성 (1000 ~ 999999)
     verification_code = str(random.randint(1000, 999999))
@@ -278,7 +291,7 @@ def request_verification(
     # 3. Redis에 저장 (Key: 이메일, Value: 인증번호) - 5분 유효
     rd.set(name=req.email, value=verification_code, ex=300)
 
-    # 4. 백그라운드로 이메일 발송 작업 추가
+    # 4. 백그라운드로 이메일 발송
     background_tasks.add_task(
         send_verification_code, 
         req.email, 
@@ -286,22 +299,18 @@ def request_verification(
     )
     
     # 5. 이메일 발송 함수를 호출
-    print(f"📧 {req.email}의 인증번호: {verification_code}")
-    print(f"📧 [발송 요청] {req.email} (백그라운드 작업 등록됨)")
+    print(f"📧 [발송 요청] {req.email}")
     
     return {"message": "인증번호가 전송되었습니다. 이메일을 확인해주세요."}
 
 
 @app.post("/email/verify-code")
 def verify_code(req: schemas.EmailVerify):
-    # 1. Redis에서 해당 이메일의 코드 가져오기
     saved_code = rd.get(req.email)
     
-    # 2. 코드가 없으면 (시간 초과)
     if not saved_code:
         raise HTTPException(status_code=400, detail="인증번호가 만료되었거나 없습니다.")
     
-    # 3. 코드 불일치
     if saved_code != req.code:
         raise HTTPException(status_code=400, detail="인증번호가 틀렸습니다.")
     
@@ -353,7 +362,7 @@ async def handle_question_generation(db: Session = Depends(get_db)):
 @app.post("/feedback", response_model=schemas.FeedbackResult)
 async def submit_answer(
     submission: schemas.AnswerSubmission, 
-    db: Session = Depends(get_db) # DB 세션 주입 추가
+    db: Session = Depends(get_db) 
 ):
     """
     사용자 답변을 받아 question_id로 DB에서 질문을 조회 후, 
@@ -383,8 +392,65 @@ def read_question(question_id: int, db: Session = Depends(get_db)):
     
     return question
 
+# === scheduler API : 1. 질문 삭제 === : 매월 마지막 날 실행
+@app.delete("/delete-old-questions")
+async def delete_old_questions(db: Session = Depends(get_db)):
+    today = date.today()
+    current_year = today.year
+    current_month = today.month
 
-# 기본 루트 API (그대로 둡니다)
+    start_of_month = today.replace(day=1)
+
+    if current_month == 12:
+        start_of_next_month = date(current_year + 1, 1, 1)
+    else:
+        start_of_next_month = today.replace(month=current_month + 1, day=1)
+    
+    deleted_count = db.query(models.Question).filter(
+        models.Question.daily_question_date >= start_of_month,
+        models.Question.daily_question_date < start_of_next_month
+    ).delete()
+    
+    db.commit()
+    
+    month_display = f"{current_year}년 {current_month}월"
+    return {"message": f"{month_display}에 해당하는 질문 {deleted_count}개가 삭제되었습니다."}
+
+
+# === scheduler API : 2. 구독자에게 질문 이메일 발송 === : 매일 오전 8시 발송 
+@app.post("/send-daily-questions")
+async def send_daily_questions(
+    background_tasks: BackgroundTasks, 
+    db: Session = Depends(get_db)
+):
+    today_date = datetime.now().date()
+    subscribers = db.query(models.Subscriber).all()
+    sent_count = 0
+    
+    for sub in subscribers: 
+        question = db.query(models.Question).filter(
+            models.Question.field == sub.field,
+            models.Question.daily_question_date == today_date
+            # models.Question.daily_question_date == "2025-12-01"
+        ).first()
+        
+        if question: 
+            question_content_for_email = question.content
+            background_tasks.add_task(
+                send_daily_question,           
+                sub.email,                     
+                question_content_for_email, 
+                sub.field.name.lower(),         
+                question.daily_question_date.isoformat()
+            )
+            
+            sent_count += 1
+            print(f"📧 [질문 발송 예약] {sub.email} ({sub.field})")
+    
+    return {"message": f"총 {sent_count}명의 구독자에게 오늘의 질문 발송을 예약했습니다."}
+
+
+# === 기본 루트 API ===
 @app.get("/")
 def read_root():
     return {"Status": "DB 연결 성공"}

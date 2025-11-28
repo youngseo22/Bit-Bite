@@ -1,6 +1,6 @@
 import enum 
 from sqlalchemy import Column, Integer, String, DateTime, Date, Enum, Text, func, Boolean
-from database import Base # database.py에서 만든 Base 클래스를 가져옵니다.
+from database import Base
 
 class User(Base):
     __tablename__ = "users"
