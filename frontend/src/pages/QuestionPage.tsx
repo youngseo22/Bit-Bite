@@ -8,12 +8,11 @@ import { RetryDialog } from '@/components/RetryDialog';
 export function QuestionPage() {
   const navigate = useNavigate();
   const { category } = useParams<{ category: string }>();
-  const { day } = useParams<{ day: string }>();
   
   const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(3); // 5 minutes in seconds
+  const [timeLeft, setTimeLeft] = useState(5 * 60); // 5 minutes in seconds
   const [isExtended, setIsExtended] = useState(false);
   const [isTimeUp, setIsTimeUp] = useState(false);
   const [isTimeExtendedVisual, setIsTimeExtendedVisual] = useState(false);
@@ -28,16 +27,19 @@ export function QuestionPage() {
   const handleSubmit = useCallback(() => {
     if (isLoading) return; // Prevent multiple submissions
     setIsLoading(true);
-    // TODO: Submit answer to the backend
-    console.log({ category, day, answer: answerRef.current });
-    // Navigate to the feedback page
-    navigate('/feedback');
-  }, [navigate, category, day, isLoading]);
+    
+    const submissionData = {
+      user_answer: answerRef.current,
+      question_id: 1,
+      question_text: question,
+      field: "컴퓨터공학"
+    };
+
+    navigate('/feedback', { state: { submission: submissionData } });
+  }, [isLoading, question, navigate]);
 
   useEffect(() => {
-    // TODO: Fetch question from backend based on category
-    // For now, using a placeholder
-    setQuestion(`질문 넣을 자리 질문 넣을 자리 질문 넣을 자리 질문 넣을 자리 질문 넣을 자리 질문 넣을 자리 질문 넣을 자리 질문 넣을 자리 질문 넣을 자리 질문 넣을 자리 질문 넣을 자리 `);
+    setQuestion(`관계형 데이터베이스에서 트랜잭션의 ACID 속성(원자성, 일관성, 고립성, 지속성) 각각이 의미하는 바를 설명하고, 데이터베이스 관리 시스템(DBMS)이 이러한 속성들을 보장하기 위해 내부적으로 어떤 기술적 메커니즘(예: 잠금, 로깅, 2단계 커밋 등)들을 활용하는지 구체적인 예시를 들어 상세히 설명하세요.`);
   }, [category]);
 
   useEffect(() => {
@@ -48,7 +50,7 @@ export function QuestionPage() {
       return () => clearInterval(timer);
     }
   }, [timeLeft]);
-
+  
   useEffect(() => {
     if (timeLeft <= 0 && !isTimeUp) {
       if (answerRef.current.trim().length === 0) {

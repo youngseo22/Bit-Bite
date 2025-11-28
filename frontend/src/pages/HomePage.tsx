@@ -8,6 +8,7 @@ import {
   emailRequestVerification,
   codeVerification,
   subscribeToNewsletter,
+  generateQuestion
 } from "@/api/api";
 
 export function HomePage() {
@@ -122,10 +123,20 @@ export function HomePage() {
       // Future: Could implement navigation to an actual home page here.
   };
 
+  const handeleGenerateQuestion = async () => {
+    try {
+      const response = await generateQuestion();
+      console.log("Question Generation successful:", response);
+    } catch (error) {
+      console.error("Question Generation failed:", error);
+      alert("질문 생성에 실패했습니다. 다시 시도해주세요.");
+    } 
+  }
 
   return (
     <>
       <main>
+        <button onClick={handeleGenerateQuestion}>ai질문 생성</button>
         <div className="text-sm text-gray-500">
           <Hero
             confirmationEmail={handleSendEmail}
