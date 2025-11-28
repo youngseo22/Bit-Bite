@@ -122,7 +122,7 @@ def subscribe(req: schemas.SubscriberCreate, db: Session = Depends(get_db)):
     return new_sub
 
 # === AI API: 1. 질문 생성 (스케줄러/CronJob 호출용) ===
-@app.post("/api/v1/challenge/generate-question")
+@app.post("/generate-question")
 async def handle_question_generation(db: Session = Depends(get_db)):
     """평일 오전 8시에 호출되어 AI 질문을 생성하고 DB에 저장합니다."""
     # 동기 DB 세션을 services.py의 async 함수에 전달
@@ -131,7 +131,7 @@ async def handle_question_generation(db: Session = Depends(get_db)):
 
 
 # === AI API: 2. 답변 제출 및 피드백 (사용자 요청) ===
-@app.post("/api/v1/challenge/submit-answer", response_model=schemas.FeedbackResult)
+@app.post("/feedback", response_model=schemas.FeedbackResult)
 async def submit_answer(submission: schemas.AnswerSubmission):
     """사용자 답변을 받아 AI 분석 후 실시간 피드백을 JSON으로 반환합니다."""
     # 이 함수는 DB 접근이 불필요하므로 DB 세션을 주입하지 않습니다.
