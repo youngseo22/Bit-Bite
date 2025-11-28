@@ -50,6 +50,16 @@ export const subscribeToNewsletter = async (payload: SubscribePayload) => {
   }
 };
 
+export const getQuestion = async (question_id: number) => {
+  try {
+    const response = await api.get(`questions/${question_id}`).json();
+    return response;
+  } catch (error) {
+    console.error('Failed to feedback:', error);
+    throw error;
+  }
+};
+
 export const generateQuestion = async () => {
   try {
     const response = await api.post('generate-question').json();
@@ -61,10 +71,8 @@ export const generateQuestion = async () => {
 };
 
 interface feedbackPayload {
-  user_answer: string;
   question_id: number;
-  question_text: string;
-  field: string;
+  user_answer: string;
 }
 
 export const requestFeedback = async (payload: feedbackPayload) => {

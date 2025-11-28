@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Loader2 } from "lucide-react";
 import { requestFeedback } from '@/api/api';
 
@@ -12,7 +12,6 @@ interface Feedback {
 
 export function FeedbackPage() {
   const location = useLocation();
-  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -22,7 +21,7 @@ export function FeedbackPage() {
       if (location.state?.submission) {
         try {
           const feedbackResponse = await requestFeedback(location.state.submission);
-          setFeedback(feedbackResponse);
+          setFeedback(feedbackResponse as Feedback);
         } catch (err) {
           console.error("Failed to get feedback:", err);
           setError("피드백을 생성하는 데 실패했습니다. 잠시 후 다시 시도해주세요.");

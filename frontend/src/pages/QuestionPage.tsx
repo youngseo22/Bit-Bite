@@ -3,45 +3,73 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { RetryDialog } from '@/components/RetryDialog';
+import { getQuestion } from '@/api/api';
 // import BackgroundGroundImage from '../assets/GradientBackground.png';
+
+interface QuestionData {
+  content: string;
+  daily_question_date: string;
+  field: string;
+  id: number;
+}
 
 export function QuestionPage() {
   const navigate = useNavigate();
-  const { category } = useParams<{ category: string }>();
+  const { id } = useParams<{ id: string }>();
+
+    const [answer, setAnswer] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const [timeLeft, setTimeLeft] = useState(5 * 60); // 5 minutes in seconds
+    const [isExtended, setIsExtended] = useState(false);
+    const [isTimeUp, setIsTimeUp] = useState(false);
+    const [isTimeExtendedVisual, setIsTimeExtendedVisual] = useState(false);
+    const [isRetryDialogOpen, setIsRetryDialogOpen] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [questionData, setQuestionData] = useState<QuestionData | null>(null);
   
-  const [question, setQuestion] = useState('');
-  const [answer, setAnswer] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(5 * 60); // 5 minutes in seconds
-  const [isExtended, setIsExtended] = useState(false);
-  const [isTimeUp, setIsTimeUp] = useState(false);
-  const [isTimeExtendedVisual, setIsTimeExtendedVisual] = useState(false);
-  const [isRetryDialogOpen, setIsRetryDialogOpen] = useState(false);
+    const answerRef = useRef(answer);
+    answerRef.current = answer;
+  
+    const today = new Date();
+    const formattedDate = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일`;
 
-  const answerRef = useRef(answer);
-  answerRef.current = answer;
+  const fieldMap: { [key: string]: string } = {
+    "인공지능": "AI",
+    "클라우드": "Cloud",
+    "컴퓨터공학": "CS",
+  };
 
-  const today = new Date();
-  const formattedDate = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일`;
-
-  const handleSubmit = useCallback(() => {
-    if (isLoading) return; // Prevent multiple submissions
-    setIsLoading(true);
-    
-    const submissionData = {
-      user_answer: answerRef.current,
-      question_id: 1,
-      question_text: question,
-      field: "컴퓨터공학"
-    };
-
-    navigate('/feedback', { state: { submission: submissionData } });
-  }, [isLoading, question, navigate]);
-
-  useEffect(() => {
-    setQuestion(`관계형 데이터베이스에서 트랜잭션의 ACID 속성(원자성, 일관성, 고립성, 지속성) 각각이 의미하는 바를 설명하고, 데이터베이스 관리 시스템(DBMS)이 이러한 속성들을 보장하기 위해 내부적으로 어떤 기술적 메커니즘(예: 잠금, 로깅, 2단계 커밋 등)들을 활용하는지 구체적인 예시를 들어 상세히 설명하세요.`);
-  }, [category]);
-
+  const displayField = questionData?.field ? fieldMap[questionData.field] || questionData.field : '';
+  
+    const handleSubmit = useCallback(() => {
+      if (isLoading) return;
+      setIsLoading(true);
+      
+      const submissionData = {
+        question_id: questionData?.id || 0,
+        user_answer: answerRef.current,
+      };
+  
+      navigate('/feedback', { state: { submission: submissionData } });
+    }, [isLoading, navigate, questionData?.id]);
+  
+    useEffect(() => {
+      const fetchQuestion = async () => {
+        if (!id) {
+          setError("질문 ID를 찾을 수 없습니다.");
+          return;
+        }
+        try {
+          const data = await getQuestion(Number(id)) as QuestionData;
+          setQuestionData(data);
+          setError(null);
+        } catch (err) {
+          console.error("Failed to get question:", err);
+          setError("질문을 불러오는 데 실패했습니다. 잠시 후 다시 시도해주세요.");
+        }
+      };
+      fetchQuestion();
+    }, [id]);
   useEffect(() => {
     if (timeLeft > 0) {
       const timer = setInterval(() => {
@@ -93,9 +121,11 @@ export function QuestionPage() {
       // className="h-full flex flex-col items-center justify-center pb-15 px-4 text-center bg-center bg-no-repeat bg-cover md:bg-contain text-gray-800"
       // style={{backgroundImage: `url(${BackgroundGroundImage})`}}>
       className="h-full flex flex-col items-center justify-center px-4 text-center text-gray-800">
-      <h1 className="text-3xl font-bold">[{formattedDate}]</h1>
-      <h1 className="flex items-center justify-center mt-2 gap-2 text-3xl font-bold mb-8">오늘의 <span className='text-4xl text-main'>{category?.toUpperCase()}</span> 질문</h1>
+      <h1 className="text-3xl font-bold">[{questionData?.daily_question_date || formattedDate}]</h1>
+      <h1 className="flex items-center justify-center mt-2 gap-2 text-3xl font-bold mb-8">오늘의 <span className='text-3xl text-main'>{displayField?.toUpperCase()}</span> 질문</h1>
       
+      {error && <p className="text-red-500 mb-4">{error}</p>}
+
       <div className="flex items-center gap-4 mb-4">
         <div className={`text-2xl font-mono font-bold ${timeLeft <= 60 ? 'text-red-500' : isTimeExtendedVisual ? 'text-green-500' : 'text-gray-700'}`}>
           {formatTime(timeLeft)}
@@ -110,7 +140,7 @@ export function QuestionPage() {
         </Button>
       </div>
 
-      <p className="text-md mb-8 w-full md:max-w-2xl text-gray-600">{question}</p>
+      <p className="text-md mb-8 w-full md:max-w-2xl text-gray-600">{questionData?.content}</p>
 
       <div className="w-full flex flex-col md:max-w-2xl">
         <Textarea
