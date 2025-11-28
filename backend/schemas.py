@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr, Field
-from datetime import datetime
+from datetime import datetime, date
 import enum
 
 # models.py에 있는 StudyField Enum을 여기에서도 사용
@@ -39,7 +39,7 @@ class QuestionCreate(BaseModel):
 
 class Question(QuestionCreate):
     id: int
-    created_at: datetime
+    daily_question_date: date
 
     class Config:
         orm_mode = True

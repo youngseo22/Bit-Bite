@@ -156,7 +156,7 @@ async def submit_answer(
     return feedback
 
 # === AI API: 3. 질문 ID 조회 (사용자 요청) ===
-@app.get("/questions/{question_id}", response_model=schemas.QuestionResponse)
+@app.get("/questions/{question_id}", response_model=schemas.Question)
 def read_question(question_id: int, db: Session = Depends(get_db)):
     """ID로 AI 질문 내용을 조회합니다."""
     # services.py에서 정의한 함수를 사용하여 DB 접근

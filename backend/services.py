@@ -8,9 +8,12 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select  # SQLAlchemy 2.0 쿼리 사용을 위해 필요
 import os
 
+from datetime import datetime, timedelta
+
 # DB 모델 및 Pydantic 모델 임포트
 from models import Question, StudyField 
 from schemas import FeedbackResult, AnswerSubmission 
+
 
 # ----------------------------------------------------
 # AI 클라이언트 초기화
@@ -35,12 +38,13 @@ def get_previous_questions_from_db(db: Session, track: StudyField) -> List[str]:
     # 결과가 튜플 리스트로 반환되므로, 문자열 리스트로 변환합니다.
     return [q[0] for q in previous_questions]
 
-def save_new_question_to_db(db: Session, track: StudyField, question_text: str):
+def save_new_question_to_db(db: Session, track: StudyField, question_text: str, target_date: datetime.date):
     """새로운 질문을 DB에 저장합니다."""
     
     new_question = Question(
         content=question_text,
-        field=track.value # StudyField의 문자열 값 저장
+        field=track.value, # StudyField의 문자열 값 저장
+        daily_question_date=target_date
     )
     
     db.add(new_question)
@@ -54,6 +58,8 @@ def save_new_question_to_db(db: Session, track: StudyField, question_text: str):
 # ----------------------------------------------------
 # DB 쿼리 함수가 동기식이지만, FastAPI의 비동기 환경 유지를 위해 async def 유지
 async def generate_new_question_for_all_tracks(db: Session): 
+
+    tomorrow_date = datetime.now().date() + timedelta(days=1)
     
     TRACKS = [StudyField.CS, StudyField.AI, StudyField.CLOUD] 
     
@@ -74,7 +80,7 @@ async def generate_new_question_for_all_tracks(db: Session):
             new_question = response.text.strip()
             
             # DB에 저장
-            save_new_question_to_db(db, track, new_question)
+            save_new_question_to_db(db, track, new_question, tomorrow_date)
             
         except Exception as e:
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="AI 질문 생성 실패")
@@ -92,6 +98,8 @@ async def analyze_and_feedback(question_text: str, field: StudyField, user_answe
     prompt = f"""당신은 기술 면접관 AI입니다. 질문: {question_text} (분야: {track_value_str}) 
     사용자 답변: {user_answer}
     분석 항목: 핵심 키워드, 기술적 정확성, 논리성. 
+
+    **중요 지침:** 생성하는 모든 텍스트(특히 JSON 배열 내부의 문자열)에는 **불필요한 강조 기호(*, **) 또는 개행 문자(\n)를 절대 포함하지 마세요.**
     
     피드백을 엄격히 다음 **JSON 형식(영어 키 사용)**으로 제공:
     {{ 
