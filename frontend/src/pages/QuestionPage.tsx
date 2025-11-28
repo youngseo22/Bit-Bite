@@ -5,7 +5,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { RetryDialog } from '@/components/RetryDialog';
 import { getQuestion } from '@/api/api';
 import { Loader2 } from 'lucide-react';
-// import BackgroundGroundImage from '../assets/GradientBackground.png';
 
 interface QuestionData {
   content: string;
@@ -20,7 +19,7 @@ export function QuestionPage() {
 
     const [answer, setAnswer] = useState('');
     const [isLoading, setIsLoading] = useState(true);
-    const [timeLeft, setTimeLeft] = useState(5 * 60); // 5 minutes in seconds
+    const [timeLeft, setTimeLeft] = useState(5 * 60);
     const [isExtended, setIsExtended] = useState(false);
     const [isTimeUp, setIsTimeUp] = useState(false);
     const [isTimeExtendedVisual, setIsTimeExtendedVisual] = useState(false);
@@ -122,10 +121,7 @@ export function QuestionPage() {
 
   return (
     <>
-    <div
-      // className="h-full flex flex-col items-center justify-center pb-15 px-4 text-center bg-center bg-no-repeat bg-cover md:bg-contain text-gray-800"
-      // style={{backgroundImage: `url(${BackgroundGroundImage})`}}>
-      className="h-full flex flex-col items-center justify-center px-4 text-center text-gray-800">
+    <div className="h-full flex flex-col items-center justify-center px-4 text-center text-gray-800">
       {isLoading ? (
         <div className="flex flex-col items-center">
           <Loader2 className="h-12 w-12 mb-5 animate-spin" />
