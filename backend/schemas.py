@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from datetime import datetime
 import enum
 
@@ -43,3 +43,17 @@ class Question(QuestionCreate):
 
     class Config:
         orm_mode = True
+
+# --- 답변 제출(AnswerSubmission) 스키마 ---
+class AnswerSubmission(BaseModel):
+    user_answer: str
+    question_id: int 
+    question_text: str 
+    field: StudyField # StudyField Enum 타입 사용
+
+# --- 피드백(Feedback) 스키마 ---
+class FeedbackResult(BaseModel):
+    score: int = Field(..., ge=0, le=100, description="면접관 AI가 부여한 0에서 100 사이의 점수")
+    well_done: list[str]          # 잘된 점
+    improvements: list[str]       # 개선할 점
+    additional_content: list[str] # 추가하면 좋은 내용
