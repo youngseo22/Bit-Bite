@@ -2,12 +2,14 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import BackgroundImage from '../assets/gradient.png';
+import { Loader2 } from "lucide-react";
 
 interface HeroProps {
   confirmationEmail: (email: string) => void;
+  isSendingEmail?: boolean;
 }
 
-export function Hero({confirmationEmail} : HeroProps) {
+export function Hero({confirmationEmail, isSendingEmail} : HeroProps) {
   const emailRegEx = /^[A-Za-z0-9]([-_.]?[A-Za-z0-9])*@[A-Za-z0-9]([-_.]?[A-Za-z0-9])*\.[A-Za-z]{2,3}$/;
   const [email, setEmail] = useState("");
   const [isError, setIsError] = useState(false);
@@ -22,7 +24,7 @@ export function Hero({confirmationEmail} : HeroProps) {
   }
 
   const handleSubscribe = () => {
-    if(!email){
+    if(!email || isSendingEmail){
       setIsError(false);
       return;
     }
@@ -65,7 +67,7 @@ export function Hero({confirmationEmail} : HeroProps) {
               className="absolute right-1 top-1/2 -translate-y-1/2 h-10"
               onClick={handleSubscribe}
             >
-              구독
+              {isSendingEmail ? <Loader2 className="h-4 w-4 animate-spin" /> : "구독"}
             </Button>
           </div>
 
