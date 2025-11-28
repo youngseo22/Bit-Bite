@@ -4,8 +4,9 @@ from google import genai
 from google.genai import types
 from fastapi import HTTPException, status
 from typing import List
-from sqlalchemy.orm import Session # 동기 DB 세션 임포트
-from sqlalchemy import select
+from sqlalchemy.orm import Session
+from sqlalchemy import select  # SQLAlchemy 2.0 쿼리 사용을 위해 필요
+import os
 
 # DB 모델 및 Pydantic 모델 임포트
 from models import Question, StudyField 
@@ -92,6 +93,7 @@ async def analyze_and_feedback(submission: AnswerSubmission) -> FeedbackResult:
     
     피드백을 엄격히 다음 **JSON 형식(영어 키 사용)**으로 제공:
     {{ 
+      "score": <점수 (0-100)>,
       "well_done": ["..."], 
       "improvements": ["..."], 
       "additional_content": ["..."] 
@@ -103,13 +105,9 @@ async def analyze_and_feedback(submission: AnswerSubmission) -> FeedbackResult:
             config=types.GenerateContentConfig(response_mime_type="application/json")
         )
         
-        # 디버그: 응답 텍스트를 터미널에 출력 (파싱 전)
-        print(f"DEBUG: Gemini Raw Response Text: {response.text}") 
-        
         return FeedbackResult.parse_raw(response.text)
 
     except Exception as e:
-        # 실제 예외 메시지를 터미널에 출력
         print(f"FATAL AI PARSING ERROR: {e}") 
         
         raise HTTPException(
