@@ -1,5 +1,5 @@
 import random
-from datetime import datetime, date, timedelta
+from datetime import datetime, date
 from typing import List
 
 from dotenv import load_dotenv
@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 import models, schemas
 from database import engine, SessionLocal
-from email_utils import send_verification_code
+from email_utils import send_verification_code, send_daily_question
 from services import (
     analyze_and_feedback, 
     generate_new_question_for_all_tracks, 
@@ -198,6 +198,34 @@ async def delete_old_questions(db: Session = Depends(get_db)):
     return {"message": f"{month_display}에 해당하는 질문 {deleted_count}개가 삭제되었습니다."}
 
 
+# === scheduler API : 2. 구독자에게 질문 이메일 발송 === : 매일 오전 8시 발송 
+@app.post("/send-daily-questions")
+async def send_daily_questions(
+    background_tasks: BackgroundTasks, 
+    db: Session = Depends(get_db)
+):
+    today_date = datetime.now().date()
+    subscribers = db.query(models.Subscriber).all()
+    sent_count = 0
+    
+    for sub in subscribers: 
+        question = db.query(models.Question).filter(
+            models.Question.field == sub.field,
+            models.Question.daily_question_date == today_date
+        ).first()
+        
+        if question: 
+            question_content_for_email = question.content
+            background_tasks.add_task(
+                send_daily_question,           
+                sub.email,                     
+                question_content_for_email     # 이메일 내용 (질문 내용)
+            )
+            
+            sent_count += 1
+            print(f"📧 [질문 발송 예약] {sub.email} ({sub.field})")
+    
+    return {"message": f"총 {sent_count}명의 구독자에게 오늘의 질문 발송을 예약했습니다."}
 
 
 # === 기본 루트 API ===
