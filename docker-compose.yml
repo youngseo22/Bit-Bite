@@ -45,7 +45,10 @@ services:
       MAIL_PORT: ${MAIL_PORT}
       MAIL_SERVER: smtp.gmail.com 
       MAIL_FROM_NAME: BitBite
-      
+    
+    env_file:
+      - .env
+
     ports:
       - "8000:8000"
       
