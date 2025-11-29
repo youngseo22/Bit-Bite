@@ -1,4 +1,5 @@
 import { Routes, Route } from "react-router-dom";
+import PrivateRoute from "./private";
 import { Layout } from "@/components/Layout";
 import { HomePage } from "@/pages/HomePage";
 import { QuestionPage } from "@/pages/QuestionPage";
@@ -14,7 +15,10 @@ function App() {
         <Route path="question/:id" element={<QuestionPage />} />
         <Route path="feedback" element={<FeedbackPage />} />
         <Route path="login" element={<LoginPage />} />
-        <Route path="admin" element={<AdminPage />} />
+
+        <Route element={<PrivateRoute />}>
+          <Route path="admin" element={<AdminPage />} />
+        </Route>
       </Route>
     </Routes>
   );

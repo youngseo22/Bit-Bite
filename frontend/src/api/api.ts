@@ -5,7 +5,78 @@ export const api = ky.create({
     prefixUrl: import.meta.env.VITE_API_BASE_URL,
     credentials: 'include',
     timeout: 180000,
+    hooks: {
+        beforeRequest: [
+            request => {
+                const token = localStorage.getItem('accessToken');
+                if (token) {
+                    request.headers.set('Authorization', `Bearer ${token}`);
+                }
+            }
+        ]
+    }
   })
+
+export type QuestionFromApi = {
+  id: number;
+  content: string;
+  field: string;
+  daily_question_date: string;
+};
+
+// Define the Token type for the adminLogin response
+export type Token = {
+  access_token: string;
+  token_type: string;
+};
+
+  interface userInfo {
+    username: string;
+    password: string;
+  }
+
+  export const adminLogin = async (payload: userInfo): Promise<Token> => {
+    try {
+      const formData = new URLSearchParams();
+      formData.append('username', payload.username);
+      formData.append('password', payload.password);
+
+      const response = await api.post('adminLogin', { body: formData });
+      return await response.json<Token>();
+    } catch (error) {
+      console.error('Failed to admin login:', error);
+      throw error;
+    }
+  };
+
+export const getMonthQuestion = async (): Promise<QuestionFromApi[]> => {
+  try {
+    const response = await api.get('admin/questions/month').json<QuestionFromApi[]>();
+    return response;
+  } catch (error) {
+    console.error('Failed to get month question:', error);
+    throw error;
+  }
+}
+
+export type QuestionFromApi = {
+  id: number;
+  content: string;
+  field: string;
+  daily_question_date: string;
+};
+
+export const putNextQuestion = async (questionId: number, newContent: string) => {
+  try {
+    const response = await api.put(`admin/questions/next-day/${questionId}`, {
+      json: { new_content: newContent }
+    }).json();
+    return response;
+  } catch (error) {
+    console.error('Failed to update question:', error);
+    throw error;
+  }
+};
 
   interface EmailVerificationPayload {
     email: string;
