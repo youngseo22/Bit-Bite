@@ -9,3 +9,4 @@ google-genai
 apscheduler
 httpx
 python-jose
+python-multipart
