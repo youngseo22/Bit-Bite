@@ -2,7 +2,7 @@
 import ky from 'ky'
 
 export const api = ky.create({
-    prefixUrl: import.meta.env.VITE_API_BASE_URL,
+    prefixUrl: `${import.meta.env.VITE_API_BASE_URL}/api`,
     credentials: 'include',
     timeout: 180000,
     hooks: {
