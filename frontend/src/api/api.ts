@@ -13,6 +13,14 @@ export const api = ky.create({
                     request.headers.set('Authorization', `Bearer ${token}`);
                 }
             }
+        ],
+        afterResponse: [
+            async (request, options, response) => {
+                if (response.status === 401 || response.status === 403) {
+                    localStorage.removeItem('accessToken');
+                    window.location.href = '/login';
+                }
+            }
         ]
     }
   })
