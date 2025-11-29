@@ -1,0 +1,28 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: daily-question-scheduler
+spec:
+  schedule: "0 8 * * 1-5" 
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: scheduler-job
+              image: jiwonniddaaa/bit-bite-backend:develop
+              args: ["python", "app/scheduler_main.py", "run-daily-challenge"] 
+              env:
+                - name: DB_HOST
+                  value: postgres-service
+                - name: DB_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: bit-bite-secrets
+                      key: postgres-password
+                - name: GEMINI_API_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: bit-bite-secrets
+                      key: gemini-api-key
+          restartPolicy: OnFailure

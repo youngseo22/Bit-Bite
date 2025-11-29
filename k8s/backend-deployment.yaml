@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-deployment
+  labels:
+    app: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+        - name: backend
+          image: jiwonniddaaa/bit-bite-backend:develop 
+          ports:
+            - containerPort: 8000
+          env:
+            - name: DB_HOST
+              value: postgres-service
+            - name: DB_NAME
+              value: bitbite_db
+            - name: DB_USER
+              value: bitbite_user
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: bit-bite-secrets
+                  key: postgres-password
+            - name: GEMINI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: bit-bite-secrets
+                  key: gemini-api-key
