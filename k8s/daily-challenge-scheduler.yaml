@@ -6,45 +6,25 @@ metadata:
     app: scheduler
     job: daily
 spec:
-  # Cron 표현식: 0 8 * * 1-5 (매주 월요일부터 금요일까지 오전 8시)
-  schedule: "0 8 * * 1-5" 
+  schedule: "0 8 * * 1-5"
   jobTemplate:
     spec:
-      # 작업이 실패하면 Pod를 다시 시작하여 성공을 유도
       template:
         spec:
           restartPolicy: OnFailure
           containers:
             - name: daily-job
-              image: jiwonniddaaa/bit-bite-backend:develop
-              # 🚨 단발성 실행: scheduler_main.py의 'daily-challenge' 함수 호출
-              args: ["python", "/scheduler_main.py", "daily-challenge"] 
+              image: lolry0207/bit-bite_scheduler:develop
+              args: ["python", "/scheduler_main.py", "daily-challenge"]
+              envFrom:
+                - secretRef:
+                    name: bit-bite-secrets
               env:
-                # 1. 스케줄러가 호출할 백엔드 API 주소 설정
-                - name: BACKEND_API_URL 
-                  value: http://backend-service:80 
-                
-                # 2. DB 연결 정보 (API 호출 시 백엔드가 DB에 접근하므로 필요)
+                - name: TZ
+                  value: "Asia/Seoul"
                 - name: DB_HOST
                   value: postgres-service
-                - name: DB_NAME
-                  value: bitbite_db
-                - name: DB_USER
-                  value: bitbite_user
                 - name: DB_PORT
                   value: "5432"
-                
-                # 3. Redis 연결 정보
-                - name: REDIS_HOST
-                  value: bitbite-redis-service
-                  
-                # 4. 🔑 Secret에서 가져오는 환경 변수들
-                - name: DB_PASSWORD
-                  valueFrom: {secretKeyRef: {name: bit-bite-secrets, key: postgres-password}}
-                - name: GEMINI_API_KEY
-                  valueFrom: {secretKeyRef: {name: bit-bite-secrets, key: gemini-api-key}}
-                - name: MAIL_USERNAME
-                  valueFrom: {secretKeyRef: {name: bit-bite-secrets, key: mail-username}}
-                - name: MAIL_PASSWORD
-                  valueFrom: {secretKeyRef: {name: bit-bite-secrets, key: mail-password}}
-                # JWT는 이 Job에서 직접 사용되지 않지만, Backend 환경 통일성을 위해 필요하다면 추가 가능
+                - name: REDIS_URL
+                  value: "redis://bitbite-redis-service:6379"

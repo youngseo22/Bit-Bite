@@ -6,8 +6,7 @@ metadata:
     app: scheduler
     job: monthly
 spec:
-  # Cron 표현식: 0 23 L * * (매월 마지막 날 23시 0분)
-  schedule: "0 23 L * *" 
+  schedule: "0 23 L * *"
   jobTemplate:
     spec:
       template:
@@ -15,38 +14,17 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: cleanup-job
-              image: jiwonniddaaa/bit-bite-backend:develop
-              # 🚨 단발성 실행: scheduler_main.py의 'monthly-cleanup' 함수 호출
-              args: ["python", "/scheduler_main.py", "monthly-cleanup"] 
+              image: lolry0207/bit-bite_scheduler:develop
+              args: ["python", "/scheduler_main.py", "monthly-cleanup"]
+              envFrom:
+                - secretRef:
+                    name: bit-bite-secrets
               env:
-                # 이 Job 역시 백엔드 API 호출 및 DB 접속이 필요하므로 동일한 ENV 설정이 필요합니다.
-                
-                # 1. 스케줄러가 호출할 백엔드 API 주소 설정
-                - name: BACKEND_API_URL 
-                  value: http://backend-service:80 
-                
-                # 2. DB 연결 정보
+                - name: TZ
+                  value: "Asia/Seoul"
                 - name: DB_HOST
                   value: postgres-service
-                - name: DB_NAME
-                  value: bitbite_db
-                - name: DB_USER
-                  value: bitbite_user
                 - name: DB_PORT
                   value: "5432"
-                
-                # 3. Redis 연결 정보
-                - name: REDIS_HOST
-                  value: bitbite-redis-service
-                  
-                # 4. 🔑 Secret에서 가져오는 환경 변수들
-                - name: DB_PASSWORD
-                  valueFrom: {secretKeyRef: {name: bit-bite-secrets, key: postgres-password}}
-                # 월별 정리에는 Gemini/Mail이 필요 없지만, 이미지 환경을 통일하기 위해 Secret 참조는 유지할 수 있습니다.
-                # (효율을 위해 사용하지 않는 Secret은 제거해도 무방합니다.)
-                - name: GEMINI_API_KEY
-                  valueFrom: {secretKeyRef: {name: bit-bite-secrets, key: gemini-api-key}}
-                - name: MAIL_USERNAME
-                  valueFrom: {secretKeyRef: {name: bit-bite-secrets, key: mail-username}}
-                - name: MAIL_PASSWORD
-                  valueFrom: {secretKeyRef: {name: bit-bite-secrets, key: mail-password}}
+                - name: REDIS_URL
+                  value: "redis://bitbite-redis-service:6379"

@@ -16,42 +16,18 @@ spec:
     spec:
       containers:
         - name: backend
-          image: jiwonniddaaa/bit-bite-backend:develop 
+          image: lolry0207/bit-bite_backend:develop
           ports:
             - containerPort: 8000
+          envFrom:
+            - secretRef:
+                name: bit-bite-secrets
           env:
-            - name: DB_PASSWORD
-              valueFrom:
-                secretKeyRef: {name: bit-bite-secrets, key: postgres-password}
-            - name: JWT_SECRET_KEY
-              valueFrom:
-                secretKeyRef: {name: bit-bite-secrets, key: jwt-secret-key}
-            - name: GEMINI_API_KEY
-              valueFrom:
-                secretKeyRef: {name: bit-bite-secrets, key: gemini-api-key}
-            - name: MAIL_USERNAME
-              valueFrom:
-                secretKeyRef: {name: bit-bite-secrets, key: mail-username}
-            - name: MAIL_PASSWORD
-              valueFrom:
-                secretKeyRef: {name: bit-bite-secrets, key: mail-password}
-            
+            - name: TZ
+              value: "Asia/Seoul"
             - name: DB_HOST
-              value: postgres-service 
-            - name: DB_NAME
-              value: bitbite_db
-            - name: DB_USER
-              value: bitbite_user
+              value: postgres-service
             - name: DB_PORT
               value: "5432"
-              
-            - name: ACCESS_TOKEN_EXPIRE_MINUTES
-              value: "30"
-              
-            - name: REDIS_HOST
-              value: bitbite-redis-service
-            
-            - name: MAIL_FROM
-              value: ysnoh22@sookmyung.ac.kr
-            - name: MAIL_PORT
-              value: "587"
+            - name: REDIS_URL
+              value: "redis://bitbite-redis-service:6379"
