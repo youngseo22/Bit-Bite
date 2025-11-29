@@ -42,7 +42,6 @@ export function HomePage() {
       console.error("Email verification request failed:", error);
       if (error instanceof HTTPError && error.response.status === 400) {
         const errorBody = await error.response.json();
-        console.log(errorBody)
         if (errorBody.detail === "이미 구독 중인 이메일입니다.") {
           setEmailRequestError("이미 가입된 이메일입니다.");
         } else {
