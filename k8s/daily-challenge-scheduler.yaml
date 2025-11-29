@@ -18,7 +18,7 @@ spec:
             - name: daily-job
               image: jiwonniddaaa/bit-bite-backend:develop
               # 🚨 단발성 실행: scheduler_main.py의 'daily-challenge' 함수 호출
-              args: ["python", "app/scheduler_main.py", "daily-challenge"] 
+              args: ["python", "/scheduler_main.py", "daily-challenge"] 
               env:
                 # 1. 스케줄러가 호출할 백엔드 API 주소 설정
                 - name: BACKEND_API_URL 

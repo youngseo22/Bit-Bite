@@ -17,7 +17,7 @@ spec:
             - name: cleanup-job
               image: jiwonniddaaa/bit-bite-backend:develop
               # 🚨 단발성 실행: scheduler_main.py의 'monthly-cleanup' 함수 호출
-              args: ["python", "app/scheduler_main.py", "monthly-cleanup"] 
+              args: ["python", "/scheduler_main.py", "monthly-cleanup"] 
               env:
                 # 이 Job 역시 백엔드 API 호출 및 DB 접속이 필요하므로 동일한 ENV 설정이 필요합니다.
                 
