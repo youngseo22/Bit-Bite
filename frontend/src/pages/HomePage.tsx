@@ -9,6 +9,7 @@ import {
   codeVerification,
   subscribeToNewsletter
 } from "@/api/api";
+import { HTTPError } from "ky";
 
 export function HomePage() {
   const [isConfirmationDialogOpen, setIsConfirmationDialogOpen] = useState(false);
@@ -19,21 +20,37 @@ export function HomePage() {
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [isVerifyingCode, setIsVerifyingCode] = useState(false);
   const [verificationError, setVerificationError] = useState("");
+  const [emailRequestError, setEmailRequestError] = useState(""); // New state for email request error
 
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
 
+  const clearEmailRequestError = () => {
+    setEmailRequestError("");
+  };
+
   const handleSendEmail = async (email: string) => {
     setSubmittedEmail(email);
     setIsSendingEmail(true);
+    setEmailRequestError(""); // Clear previous errors
 
     try {
       await emailRequestVerification({ email });
       setIsConfirmationDialogOpen(true);
     } catch (error) {
       console.error("Email verification request failed:", error);
-      alert("메일 전송에 실패했습니다. 다시 시도해주세요.");
+      if (error instanceof HTTPError && error.response.status === 400) {
+        const errorBody = await error.response.json();
+        console.log(errorBody)
+        if (errorBody.detail === "이미 구독 중인 이메일입니다.") {
+          setEmailRequestError("이미 가입된 이메일입니다.");
+        } else {
+          setEmailRequestError("메일 전송에 실패했습니다. 다시 시도해주세요.");
+        }
+      } else {
+        setEmailRequestError("메일 전송에 실패했습니다. 다시 시도해주세요.");
+      }
       setSubmittedEmail("");
     } finally {
       setIsSendingEmail(false);
@@ -111,6 +128,8 @@ export function HomePage() {
           <Hero
             confirmationEmail={handleSendEmail}
             isSendingEmail={isSendingEmail}
+            emailRequestError={emailRequestError}
+            onEmailInputChange={clearEmailRequestError} // Pass the clear function
           />
         </div>
         <Features />
