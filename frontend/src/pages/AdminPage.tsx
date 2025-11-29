@@ -1,12 +1,13 @@
 import { useState, useEffect, Fragment, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { getMonthQuestion, putNextQuestion, type QuestionFromApi } from '../api/api';
 
 // --- Data Structure ---
 type Question = {
   id: number;
   field: string;
-  text: string;
+  content: string;
 };
 
 type DailyQuestions = {
@@ -14,44 +15,104 @@ type DailyQuestions = {
   questions: Question[];
 };
 
-// Updated Mock Data with new fields
-const mockDailyQuestions: DailyQuestions[] = [
-    { date: '2025-11-27', questions: [ { id: 1, field: 'CS', text: '어제 CS 관련해서 가장 고민되었던 부분은 무엇인가요?' }, { id: 2, field: '클라우드', text: '어제 클라우드 관련해서 가장 행복했던 순간은 언제인가요?' }, { id: 3, field: '인공지능', text: '어제 AI와 관련해서 어떤 생각을 했나요?' }, ] },
-    { date: '2025-11-28', questions: [ { id: 4, field: 'CS', text: '오늘 CS 스터디 중에 어떤 점을 개선하고 싶으신가요?' }, { id: 5, field: '클라우드', text: '오늘 클라우드 서비스에서 가장 만족스러운 부분은 무엇인가요?' }, { id: 6, field: '인공지능', text: '오늘 AI 모델을 사용하면서 어떤 것을 느꼈나요?' }, ] },
-    { date: '2025-11-29', questions: [ { id: 7, field: 'CS', text: '내일 CS 기초를 위해 무엇을 할 계획인가요?' }, { id: 8, field: '클라우드', text: '내일 어떤 클라우드 기술을 더 배우고 싶으신가요?' }, { id: 9, field: '인공지능', text: '내일의 AI 관련 계획은 무엇인가요?' }, ] },
-];
-
-
 // --- Helper Functions ---
 function getQuestionStatus(questionDate: Date, now: Date) {
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const qDate = new Date(questionDate.getFullYear(), questionDate.getMonth(), questionDate.getDate());
-  const isToday = qDate.getTime() === today.getTime();
-  const isTomorrow = qDate.getTime() === new Date(today.getTime() + 24 * 60 * 60 * 1000).getTime();
 
-  if (qDate < today) return { status: '전송 완료', isEditable: false, isVisible: true };
-  if (isToday) {
-    if (now.getHours() * 60 + now.getMinutes() < 7 * 60 + 30) return { status: '수정 가능', isEditable: true, isVisible: true };
-    if (now.getHours() < 8) return { status: '수정 마감', isEditable: false, isVisible: true };
+  // 시간차 계산 (밀리초 단위)
+  const diffTime = qDate.getTime() - today.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  const isToday = diffDays === 0;
+  const isTomorrow = diffDays === 1;
+  
+  // 과거 질문
+  if (diffDays < 0) {
     return { status: '전송 완료', isEditable: false, isVisible: true };
   }
-  if (isTomorrow) {
-    if (now.getHours() >= 8) return { status: '수정 가능', isEditable: true, isVisible: true };
-    return { status: '생성 대기', isEditable: false, isVisible: false };
+
+  // 오늘 질문
+  if (isToday) {
+    // 오전 7시 30분 이전: 수정 가능
+    if (now.getHours() * 60 + now.getMinutes() < 7 * 60 + 30) {
+      return { status: '수정 가능', isEditable: true, isVisible: true };
+    }
+    // 오전 8시 이전: 수정 마감
+    if (now.getHours() < 8) {
+      return { status: '수정 마감', isEditable: false, isVisible: true };
+    }
+    // 오전 8시 이후: 전송 완료
+    return { status: '전송 완료', isEditable: false, isVisible: true };
   }
-  if (qDate > today) return { status: '생성 대기', isEditable: false, isVisible: false };
-  return { status: '', isEditable: false, isVisible: false };
+
+  const qDayOfWeek = qDate.getDay(); // 0:Sun, 1:Mon, ..., 6:Sat
+  const nowDayOfWeek = now.getDay();
+
+  // 월요일 질문 (qDayOfWeek === 1)
+  if (qDayOfWeek === 1) {
+    // 금요일(5) 08시 이후부터 ~ 월요일(1) 07시 30분 이전까지
+    const isFridayAfter8 = nowDayOfWeek === 5 && now.getHours() >= 8;
+    const isSaturday = nowDayOfWeek === 6;
+    const isSunday = nowDayOfWeek === 0;
+    const isMondayBefore730 = nowDayOfWeek === 1 && (now.getHours() * 60 + now.getMinutes() < 7 * 60 + 30);
+    
+    // 이 조건은 다음 주 월요일에만 해당
+    if (diffDays > 1 && diffDays <= 3 && (isFridayAfter8 || isSaturday || isSunday)) {
+       return { status: '수정 가능', isEditable: true, isVisible: true };
+    }
+     if (isMondayBefore730) {
+       return { status: '수정 가능', isEditable: true, isVisible: true };
+    }
+  }
+  
+  // 내일 질문 (월-목)
+  if (isTomorrow) {
+    // 오늘 08시 이후부터 수정 가능
+    if (now.getHours() >= 8) {
+      return { status: '수정 가능', isEditable: true, isVisible: true };
+    }
+    return { status: '생성 대기', isEditable: false, isVisible: true }; // 8시 이전에는 보여주되 수정 불가
+  }
+  
+  // 그 외 미래 질문
+  return { status: '생성 대기', isEditable: false, isVisible: true };
 }
+
 
 export function AdminPage() {
   const [dailyQuestions, setDailyQuestions] = useState<DailyQuestions[]>([]);
   const [editingQuestionId, setEditingQuestionId] = useState<number | null>(null);
-  const [editedQuestionText, setEditedQuestionText] = useState('');
+  const [editedQuestionContent, setEditedQuestionContent] = useState('');
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [activeFilter, setActiveFilter] = useState('전체'); // Simplified to single filter
+  const [activeFilter, setActiveFilter] = useState('전체');
+
+  const fetchQuestions = async () => {
+    try {
+      const questionsFromApi: QuestionFromApi[] = await getMonthQuestion();
+      
+      const groupedQuestions = questionsFromApi.reduce((acc, q) => {
+        const date = q.daily_question_date;
+        if (!acc[date]) {
+          acc[date] = [];
+        }
+        acc[date].push({ id: q.id, field: q.field, content: q.content });
+        return acc;
+      }, {} as Record<string, Question[]>);
+
+      const dailyQuestionsData: DailyQuestions[] = Object.entries(groupedQuestions).map(([date, questions]) => ({
+        date,
+        questions,
+      }));
+      
+      setDailyQuestions(dailyQuestionsData);
+    } catch (error) {
+      console.error("Failed to fetch questions:", error);
+    }
+  };
 
   useEffect(() => {
-    setDailyQuestions(mockDailyQuestions);
+    fetchQuestions();
   }, []);
 
   useEffect(() => {
@@ -61,20 +122,39 @@ export function AdminPage() {
 
   const handleEdit = (question: Question) => {
     setEditingQuestionId(question.id);
-    setEditedQuestionText(question.text);
+    setEditedQuestionContent(question.content);
   };
 
   const handleCancel = () => {
     setEditingQuestionId(null);
-    setEditedQuestionText('');
+    setEditedQuestionContent('');
   };
 
-  const handleSave = () => {
-    setDailyQuestions(dailyQuestions.map(day => ({ ...day, questions: day.questions.map(q => q.id === editingQuestionId ? { ...q, text: editedQuestionText } : q) })));
-    handleCancel();
+  const handleSave = async () => {
+    if (editingQuestionId === null) return;
+
+    try {
+      await putNextQuestion(editingQuestionId, editedQuestionContent);
+      setDailyQuestions(dailyQuestions.map(day => ({ 
+        ...day, 
+        questions: day.questions.map(q => 
+          q.id === editingQuestionId ? { ...q, content: editedQuestionContent } : q
+        ) 
+      })));
+      handleCancel();
+      alert('질문이 성공적으로 수정되었습니다.');
+    } catch (error) {
+      alert('질문 수정에 실패했습니다. 수정 가능한 시간이 맞는지 확인해주세요.');
+      console.error("Failed to save question:", error);
+    }
   };
 
-  const filterCategories = ['전체', 'CS', '클라우드', '인공지능'];
+  const filterOptions = [
+    { display: '전체', value: '전체' },
+    { display: 'CS', value: '컴퓨터공학' },
+    { display: '클라우드', value: '클라우드' },
+    { display: '인공지능', value: '인공지능' },
+  ];
   
   const filteredDailyQuestions = useMemo(() => {
     const monthDailyQuestions = dailyQuestions.filter(day => {
@@ -107,15 +187,15 @@ export function AdminPage() {
         </h1>
         <div className="flex gap-2 items-center">
             <span className='text-sm font-medium text-gray-600'>필터:</span>
-            {filterCategories.map(field => (
+            {filterOptions.map(option => (
                 <Button 
-                  key={field} 
-                  onClick={() => setActiveFilter(field)} 
-                  variant="outline"
-                  className={activeFilter === field ? 'bg-blue-600 text-white hover:bg-blue-700 hover:text-white' : ''}
+                  key={option.value} 
+                  onClick={() => setActiveFilter(option.value)} 
+                  variant="ghost"
+                  className={ activeFilter === option.value ? '!bg-main' : '' }
                   size="sm"
                 >
-                    {field}
+                    {option.display}
                 </Button>
             ))}
         </div>
@@ -124,7 +204,7 @@ export function AdminPage() {
         <table className="w-full text-left min-w-[800px]">
           <thead className="bg-gray-50 border-b">
             <tr>
-              <th className="p-4 font-medium w-40">날짜</th>
+              <th className="p-4 font-medium w-40">전송 날짜</th>
               <th className="p-4 font-medium w-32">분야</th>
               <th className="p-4 font-medium">질문</th>
               <th className="p-4 font-medium w-32 text-center">상태</th>
@@ -134,9 +214,8 @@ export function AdminPage() {
           <tbody>
             {filteredDailyQuestions.map(day => {
               const questionDate = new Date(day.date);
-              const { status, isEditable, isVisible } = getQuestionStatus(questionDate, currentTime);
-              if (!isVisible) return null;
-
+              const { status, isEditable } = getQuestionStatus(questionDate, currentTime);
+              
               return (
                 <Fragment key={day.date}>
                   {day.questions.map((question, index) => {
@@ -146,7 +225,7 @@ export function AdminPage() {
                         {index === 0 && ( <td className="p-4 align-top font-medium" rowSpan={day.questions.length}> {questionDate.toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit', weekday: 'short' })} </td> )}
                         <td className="p-4 align-top font-semibold text-gray-600">{question.field}</td>
                         <td className="p-4">
-                          {isEditing ? ( <Textarea value={editedQuestionText} onChange={(e) => setEditedQuestionText(e.target.value)} className="min-h-[80px]" /> ) : ( <p className="text-gray-800">{question.text}</p> )}
+                          {isEditing ? ( <Textarea value={editedQuestionContent} onChange={(e) => setEditedQuestionContent(e.target.value)} className="min-h-[80px]" /> ) : ( <p className="text-gray-800">{question.content}</p> )}
                         </td>
                         <td className="p-4 align-top text-center">
                           <span className={`px-3 py-1 text-sm font-medium rounded-full ${statusColors[status] || ''}`}> {status} </span>
