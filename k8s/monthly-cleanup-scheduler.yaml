@@ -1,30 +1,31 @@
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: daily-challenge-scheduler
+  name: monthly-cleanup-scheduler
   labels:
     app: scheduler
-    job: daily
+    job: monthly
 spec:
-  # Cron 표현식: 0 8 * * 1-5 (매주 월요일부터 금요일까지 오전 8시)
-  schedule: "0 8 * * 1-5" 
+  # Cron 표현식: 0 23 L * * (매월 마지막 날 23시 0분)
+  schedule: "0 23 L * *" 
   jobTemplate:
     spec:
-      # 작업이 실패하면 Pod를 다시 시작하여 성공을 유도
       template:
         spec:
           restartPolicy: OnFailure
           containers:
-            - name: daily-job
+            - name: cleanup-job
               image: jiwonniddaaa/bit-bite-backend:develop
-              # 🚨 단발성 실행: scheduler_main.py의 'daily-challenge' 함수 호출
-              args: ["python", "app/scheduler_main.py", "daily-challenge"] 
+              # 🚨 단발성 실행: scheduler_main.py의 'monthly-cleanup' 함수 호출
+              args: ["python", "app/scheduler_main.py", "monthly-cleanup"] 
               env:
+                # 이 Job 역시 백엔드 API 호출 및 DB 접속이 필요하므로 동일한 ENV 설정이 필요합니다.
+                
                 # 1. 스케줄러가 호출할 백엔드 API 주소 설정
                 - name: BACKEND_API_URL 
                   value: http://backend-service:80 
                 
-                # 2. DB 연결 정보 (API 호출 시 백엔드가 DB에 접근하므로 필요)
+                # 2. DB 연결 정보
                 - name: DB_HOST
                   value: postgres-service
                 - name: DB_NAME
@@ -41,10 +42,11 @@ spec:
                 # 4. 🔑 Secret에서 가져오는 환경 변수들
                 - name: DB_PASSWORD
                   valueFrom: {secretKeyRef: {name: bit-bite-secrets, key: postgres-password}}
+                # 월별 정리에는 Gemini/Mail이 필요 없지만, 이미지 환경을 통일하기 위해 Secret 참조는 유지할 수 있습니다.
+                # (효율을 위해 사용하지 않는 Secret은 제거해도 무방합니다.)
                 - name: GEMINI_API_KEY
                   valueFrom: {secretKeyRef: {name: bit-bite-secrets, key: gemini-api-key}}
                 - name: MAIL_USERNAME
                   valueFrom: {secretKeyRef: {name: bit-bite-secrets, key: mail-username}}
                 - name: MAIL_PASSWORD
                   valueFrom: {secretKeyRef: {name: bit-bite-secrets, key: mail-password}}
-                # JWT는 이 Job에서 직접 사용되지 않지만, Backend 환경 통일성을 위해 필요하다면 추가 가능
