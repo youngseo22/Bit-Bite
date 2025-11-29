@@ -5,6 +5,7 @@ from typing import List
 
 from dotenv import load_dotenv
 from fastapi import (
+    APIRouter,
     BackgroundTasks, 
     Depends, 
     FastAPI, 
@@ -25,7 +26,7 @@ from services import analyze_and_feedback, generate_new_question_for_all_tracks,
 from utils import get_next_weekday
 
 load_dotenv()
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="adminLogin")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/adminLogin")
 
 # JWT 설정 (환경 변수에서 값 로드)
 SECRET_KEY = os.getenv("JWT_SECRET_KEY")
@@ -37,6 +38,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
 models.Base.metadata.create_all(bind=engine) 
 
 app = FastAPI()
+router = APIRouter()
 
 app.add_middleware(
     CORSMiddleware,
@@ -146,7 +148,7 @@ def on_startup():
 
 # === API 엔드포인트 ===
 
-@app.get("/admin/questions/month", response_model=List[schemas.QuestionResponse], tags=["Admin"])
+@router.get("/admin/questions/month", response_model=List[schemas.QuestionResponse], tags=["Admin"])
 def get_monthly_questions(
     db: Session = Depends(get_db), 
     admin_user: models.User = Depends(get_current_admin_user)
@@ -216,7 +218,7 @@ def check_modification_window(scheduled_date: date):
         )
     # 윈도우 내에 있으면 통과
 
-@app.put("/admin/questions/next-day/{question_id}", tags=["Admin"])
+@router.put("/admin/questions/next-day/{question_id}", tags=["Admin"])
 def modify_next_day_question(
     question_id: int,
     modification: schemas.QuestionModify,
@@ -243,7 +245,7 @@ def modify_next_day_question(
     return {"message": f"질문 #{question.id} 내용이 성공적으로 수정되었습니다."}
 
 # === 0. 관리자 로그인 API ===
-@app.post("/adminLogin", response_model=schemas.Token)
+@router.post("/adminLogin", response_model=schemas.Token)
 def login_for_access_token(
     form_data: OAuth2PasswordRequestForm = Depends(), # ID/PW를 Form 데이터로 받음
     db: Session = Depends(get_db)
@@ -274,7 +276,7 @@ def login_for_access_token(
     )
     return {"access_token": access_token}
 
-@app.post("/email/request-verification")
+@router.post("/email/request-verification")
 def request_verification(
     req: schemas.EmailRequest, 
     background_tasks: BackgroundTasks,
@@ -305,7 +307,7 @@ def request_verification(
     return {"message": "인증번호가 전송되었습니다. 이메일을 확인해주세요."}
 
 
-@app.post("/email/verify-code")
+@router.post("/email/verify-code")
 def verify_code(req: schemas.EmailVerify):
     saved_code = rd.get(req.email)
     
@@ -323,7 +325,7 @@ def verify_code(req: schemas.EmailVerify):
     
     return {"message": "이메일 인증 성공! 이제 분야를 선택해주세요."}
 
-@app.post("/subscribe", response_model=schemas.SubscriberResponse)
+@router.post("/subscribe", response_model=schemas.SubscriberResponse)
 def subscribe(req: schemas.SubscriberCreate, db: Session = Depends(get_db)):
     # Redis에서 증표 확인
     is_verified = rd.get(f"verified:{req.email}")
@@ -351,7 +353,7 @@ def subscribe(req: schemas.SubscriberCreate, db: Session = Depends(get_db)):
     return new_sub
 
 # === AI API: 1. 질문 생성 (스케줄러/CronJob 호출용) ===
-@app.post("/generate-question")
+@router.post("/generate-question")
 async def handle_question_generation(db: Session = Depends(get_db)):
     """평일 오전 8시에 호출되어 AI 질문을 생성하고 DB에 저장합니다."""
     # 동기 DB 세션을 services.py의 async 함수에 전달
@@ -360,7 +362,7 @@ async def handle_question_generation(db: Session = Depends(get_db)):
 
 
 # === AI API: 2. 답변 제출 및 피드백 (사용자 요청) ===
-@app.post("/feedback", response_model=schemas.FeedbackResult)
+@router.post("/feedback", response_model=schemas.FeedbackResult)
 async def submit_answer(
     submission: schemas.AnswerSubmission, 
     db: Session = Depends(get_db) 
@@ -385,7 +387,7 @@ async def submit_answer(
     return feedback
 
 # === AI API: 3. 질문 ID 조회 (사용자 요청) ===
-@app.get("/questions/{question_id}", response_model=schemas.Question)
+@router.get("/questions/{question_id}", response_model=schemas.Question)
 def read_question(question_id: int, db: Session = Depends(get_db)):
     """ID로 AI 질문 내용을 조회합니다."""
     # services.py에서 정의한 함수를 사용하여 DB 접근
@@ -394,7 +396,7 @@ def read_question(question_id: int, db: Session = Depends(get_db)):
     return question
 
 # === scheduler API : 1. 질문 삭제 === : 매월 마지막 날 실행
-@app.delete("/delete-old-questions")
+@router.delete("/delete-old-questions")
 async def delete_old_questions(db: Session = Depends(get_db)):
     today = date.today()
     current_year = today.year
@@ -419,7 +421,7 @@ async def delete_old_questions(db: Session = Depends(get_db)):
 
 
 # === scheduler API : 2. 구독자에게 질문 이메일 발송 === : 매일 오전 8시 발송 
-@app.post("/send-daily-questions")
+@router.post("/send-daily-questions")
 async def send_daily_questions(
     background_tasks: BackgroundTasks, 
     db: Session = Depends(get_db)
@@ -450,6 +452,7 @@ async def send_daily_questions(
     
     return {"message": f"총 {sent_count}명의 구독자에게 오늘의 질문 발송을 예약했습니다."}
 
+app.include_router(router, prefix="/api")
 
 # === 기본 루트 API ===
 @app.get("/")
@@ -458,7 +461,7 @@ def read_root():
 
 
 # === 구독자 목록 조회 API (관리자용) ===
-@app.get("/subscribers", response_model=List[schemas.SubscriberResponse])
+@router.get("/subscribers", response_model=List[schemas.SubscriberResponse])
 def read_subscribers(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     subscribers = db.query(models.Subscriber).offset(skip).limit(limit).all()
     return subscribers

@@ -7,9 +7,11 @@ import { Loader2 } from "lucide-react";
 interface HeroProps {
   confirmationEmail: (email: string) => void;
   isSendingEmail?: boolean;
+  emailRequestError?: string;
+  onEmailInputChange: () => void; // New prop
 }
 
-export function Hero({confirmationEmail, isSendingEmail} : HeroProps) {
+export function Hero({confirmationEmail, isSendingEmail, emailRequestError, onEmailInputChange} : HeroProps) {
   const emailRegEx = /^[A-Za-z0-9]([-_.]?[A-Za-z0-9])*@[A-Za-z0-9]([-_.]?[A-Za-z0-9])*\.[A-Za-z]{2,3}$/;
   const [email, setEmail] = useState("");
   const [isError, setIsError] = useState(false);
@@ -17,6 +19,7 @@ export function Hero({confirmationEmail, isSendingEmail} : HeroProps) {
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const inputEmail = e.target.value;
     setEmail(inputEmail);
+    onEmailInputChange(); // Call the new prop
 
     if(inputEmail.length === 0) setIsError(false);
     else if(!emailRegEx.test(inputEmail)) setIsError(true);
@@ -74,6 +77,9 @@ export function Hero({confirmationEmail, isSendingEmail} : HeroProps) {
           <div className="h-6 w-full"> 
           { isError && (
             <div className="text-xs text-red-500 w-full">올바른 이메일 주소를 입력해주세요.</div> 
+          )}
+          { emailRequestError && ( // Display emailRequestError here
+            <div className="text-xs text-red-500 w-full">{emailRequestError}</div>
           )}
           </div>
         </div>

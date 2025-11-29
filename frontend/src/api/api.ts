@@ -2,7 +2,7 @@
 import ky from 'ky'
 
 export const api = ky.create({
-    prefixUrl: import.meta.env.VITE_API_BASE_URL,
+    prefixUrl: `${import.meta.env.VITE_API_BASE_URL}/api`,
     credentials: 'include',
     timeout: 180000,
     hooks: {
@@ -11,6 +11,14 @@ export const api = ky.create({
                 const token = localStorage.getItem('accessToken');
                 if (token) {
                     request.headers.set('Authorization', `Bearer ${token}`);
+                }
+            }
+        ],
+        afterResponse: [
+            async (request, options, response) => {
+                if (response.status === 401 || response.status === 403) {
+                    localStorage.removeItem('accessToken');
+                    window.location.href = '/login';
                 }
             }
         ]

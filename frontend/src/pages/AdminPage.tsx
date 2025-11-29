@@ -186,7 +186,6 @@ export function AdminPage() {
           </span>
         </h1>
         <div className="flex gap-2 items-center">
-            <span className='text-sm font-medium text-gray-600'>필터:</span>
             {filterOptions.map(option => (
                 <Button 
                   key={option.value} 
