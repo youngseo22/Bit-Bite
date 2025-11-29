@@ -8,5 +8,5 @@ spec:
   ports:
     - protocol: TCP
       port: 80
-      targetPort: 80
-  type: ClusterIP # Ingress를 통해 노출되므로 ClusterIP
+      targetPort: 8080
+  type: ClusterIP
