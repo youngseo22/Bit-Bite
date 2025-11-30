@@ -16,6 +16,6 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: jiwonniddaaa/bit-bite-frontend:develop
+          image: lolry0207/bit-bite_frontend:latest
           ports:
-            - containerPort: 80
+            - containerPort: 8080

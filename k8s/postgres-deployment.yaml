@@ -20,15 +20,21 @@ spec:
           ports:
             - containerPort: 5432
           env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: bit-bite-secrets
+                  key: DB_USER
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: bit-bite-secrets
-                  key: postgres-password
+                  key: DB_PASSWORD
             - name: POSTGRES_DB
-              value: bitbite_db
-            - name: POSTGRES_USER
-              value: bitbite_user
+              valueFrom:
+                secretKeyRef:
+                  name: bit-bite-secrets
+                  key: DB_NAME
           volumeMounts:
             - mountPath: /var/lib/postgresql/data
               name: postgres-storage
