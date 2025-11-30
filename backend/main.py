@@ -38,14 +38,13 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
 models.Base.metadata.create_all(bind=engine) 
 
 app = FastAPI()
-router = APIRouter()
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8080", "http://localhost:5173"],
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
-    allow_headers=["*"]
+    allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # === Redis 연결 ===
@@ -59,6 +58,12 @@ try:
     print("✅ Redis 연결 성공!")
 except Exception as e:
     print(f"❌ Redis 연결 실패! 오류: {e}")
+
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+
+router = APIRouter(prefix="/api")
 
 # DB 세션 의존성 주입 
 def get_db():
@@ -452,8 +457,6 @@ async def send_daily_questions(
     
     return {"message": f"총 {sent_count}명의 구독자에게 오늘의 질문 발송을 예약했습니다."}
 
-app.include_router(router, prefix="/api")
-
 # === 기본 루트 API ===
 @app.get("/")
 def read_root():
@@ -465,3 +468,5 @@ def read_root():
 def read_subscribers(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     subscribers = db.query(models.Subscriber).offset(skip).limit(limit).all()
     return subscribers
+
+app.include_router(router)

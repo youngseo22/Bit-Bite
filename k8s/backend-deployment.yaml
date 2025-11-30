@@ -16,12 +16,16 @@ spec:
     spec:
       containers:
         - name: backend
-          image: lolry0207/bit-bite_backend:develop
+          image: lolry0207/bit-bite_backend:latest
           ports:
             - containerPort: 8000
           envFrom:
             - secretRef:
                 name: bit-bite-secrets
+          lifecycle:
+            postStart:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 20"]
           env:
             - name: TZ
               value: "Asia/Seoul"

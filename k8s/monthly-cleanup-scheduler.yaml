@@ -6,7 +6,7 @@ metadata:
     app: scheduler
     job: monthly
 spec:
-  schedule: "0 23 L * *"
+  schedule: "0 1 1 * *"
   jobTemplate:
     spec:
       template:
@@ -14,7 +14,7 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: cleanup-job
-              image: lolry0207/bit-bite_scheduler:develop
+              image: lolry0207/bit-bite_scheduler:latest
               args: ["python", "/scheduler_main.py", "monthly-cleanup"]
               envFrom:
                 - secretRef:
