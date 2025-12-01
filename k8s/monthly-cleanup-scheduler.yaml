@@ -7,6 +7,7 @@ metadata:
     job: monthly
 spec:
   schedule: "0 1 1 * *"
+  timeZone: "Asia/Seoul"
   jobTemplate:
     spec:
       template:
@@ -14,8 +15,8 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: cleanup-job
-              image: lolry0207/bit-bite_scheduler:latest
-              args: ["python", "/scheduler_main.py", "monthly-cleanup"]
+              image: jiwonniddaaa/bit-bite_backend:fix-3
+              args: ["python", "/app/scheduler_runner.py", "monthly-cleanup"]
               envFrom:
                 - secretRef:
                     name: bit-bite-secrets

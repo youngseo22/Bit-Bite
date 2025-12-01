@@ -1,4 +1,6 @@
 import os
+import traceback
+import sys
 from google import genai
 from google.genai import types
 from fastapi import HTTPException, status
@@ -70,6 +72,12 @@ async def generate_new_question_for_all_tracks(db: Session):
                 save_new_question_to_db(db, track, new_question, scheduled_date)
             
         except Exception as e:
+            # 🚨 예외 상세 정보를 표준 에러 출력(stderr)으로 강제 출력
+            print(f"--- 🚨 DEBUG: AI 질문 생성 중 예외 발생 (Track: {track.value}) ---", file=sys.stderr)
+            traceback.print_exc(file=sys.stderr)
+            print("-------------------------------------------------------------------", file=sys.stderr)
+            
+            # 500 에러는 유지하여 스케줄러 Job이 실패하게 함
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="AI 질문 생성 실패")
 
 async def analyze_and_feedback(question_text: str, field: StudyField, user_answer: str) -> FeedbackResult:

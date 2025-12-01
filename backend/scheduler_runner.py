@@ -35,10 +35,10 @@ async def run_daily_challenge():
     async with httpx.AsyncClient(timeout=60.0) as client:
         try:
             # 1. 질문 생성 (/generate-question 호출)
-            await call_api(client, "/api/generate-question", method='POST') 
+            await call_api(client, "api/generate-question", method='POST') 
             
             # 2. 이메일 발송 (/send-daily-questions 호출)
-            await call_api(client, "/api/send-daily-questions", method='POST')
+            await call_api(client, "api/send-daily-questions", method='POST')
 
             success = True
         except Exception as e:
@@ -55,7 +55,7 @@ async def run_monthly_cleanup():
     async with httpx.AsyncClient(timeout=60.0) as client:
         try:
             # 이전 달의 데이터 삭제 API 호출
-            await call_api(client, "/api/delete-old-questions", method='DELETE')
+            await call_api(client, "api/delete-old-questions", method='DELETE')
             success = True
         except Exception as e:
             print(f"[{datetime.now()}] ❌ Monthly cleanup failed: {e}")

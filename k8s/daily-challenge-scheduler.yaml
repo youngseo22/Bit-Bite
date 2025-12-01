@@ -6,7 +6,8 @@ metadata:
     app: scheduler
     job: daily
 spec:
-  schedule: "0 8 * * 1-5"
+  schedule: "27 22 * * 1-5"
+  timeZone: "Asia/Seoul"
   jobTemplate:
     spec:
       template:
@@ -14,12 +15,15 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: daily-job
-              image: lolry0207/bit-bite_scheduler:latest
-              args: ["python", "/scheduler_main.py", "daily-challenge"]
+              image: jiwonniddaaa/bit-bite_backend:fix-3
+              imagePullPolicy: Always
+              args: ["python", "/app/scheduler_runner.py", "daily-challenge"]
               envFrom:
                 - secretRef:
                     name: bit-bite-secrets
               env:
+                - name: BACKEND_API_URL
+                  value: "http://backend-service:8000"
                 - name: TZ
                   value: "Asia/Seoul"
                 - name: DB_HOST
