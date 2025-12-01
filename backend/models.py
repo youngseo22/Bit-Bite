@@ -16,7 +16,6 @@ class User(Base):
     def verify_password(self, input_password: str):
         return input_password == self.password
 
-# 'StudyField' Domain을 파이썬 Enum으로 정의
 class StudyField(enum.Enum):
     AI = "인공지능"
     CLOUD = "클라우드"
@@ -24,7 +23,7 @@ class StudyField(enum.Enum):
 
 # 구독자(subscribers) 테이블 모델
 class Subscriber(Base):
-    __tablename__ = "subscribers" # 테이블 이름
+    __tablename__ = "subscribers"
 
     id = Column(Integer, primary_key=True, index=True) 
     email = Column(String, unique=True, index=True, nullable=False)
