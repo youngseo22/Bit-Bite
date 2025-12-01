@@ -6,7 +6,7 @@ metadata:
     app: scheduler
     job: daily
 spec:
-  schedule: "27 22 * * 1-5"
+  schedule: "0 12 20 * 1-5"
   timeZone: "Asia/Seoul"
   jobTemplate:
     spec:
@@ -15,7 +15,7 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: daily-job
-              image: jiwonniddaaa/bit-bite_backend:fix-3
+              image: lolry0207/bit-bite_backend:fix
               imagePullPolicy: Always
               args: ["python", "/app/scheduler_runner.py", "daily-challenge"]
               envFrom:

@@ -1,71 +1,55 @@
 import asyncio
 import os
-import sys # 명령줄 인자를 받기 위해 추가
+import sys
 import httpx
 from datetime import datetime
 
-# 🚨 K8s 설정 반영: 백엔드 서비스 주소 사용
 BACKEND_API_URL = os.getenv("BACKEND_API_URL", "http://backend-service:80")
 
-# ----------------------------------------------------
-# 1. API 호출 함수 정의
-# ----------------------------------------------------
-
+# API를 호출하고 상태를 확인
 async def call_api(client: httpx.AsyncClient, path: str, method: str = 'POST'):
-    """API를 호출하고 상태를 확인하는 헬퍼 함수"""
     url = f"{BACKEND_API_URL}/{path}"
-    print(f"[{datetime.now()}] ➡️ Calling API: {url}")
+    print(f"[{datetime.now()}] API 호출: {url}")
     
-    if method == 'POST':
-        resp = await client.post(url)
-    elif method == 'DELETE':
-        resp = await client.delete(url)
+    if method == 'POST': resp = await client.post(url)
+    elif method == 'DELETE': resp = await client.delete(url)
     
     resp.raise_for_status()
-    print(f"[{datetime.now()}] ✅ API call successful.")
+    print(f"[{datetime.now()}] API 호출에 성공하였습니다.")
 
     return True
 
+# 질문 생성 -> 이메일 발송 API를 순차적으로 호출
 async def run_daily_challenge():
-    """1. 질문 생성 API 호출 후, 2. 이메일 발송 API를 순차적으로 호출합니다."""
-    print(f"[{datetime.now()}] 🧠 Daily Challenge Job started (Generate & Send).")
+    print(f"[{datetime.now()}] 질문 생성 및 메일 발송 API가 시작되었습니다.")
     success = False
     
-    # 🚨 참고: 원래 코드는 60초 타임아웃을 사용했으므로, 그대로 유지합니다.
     async with httpx.AsyncClient(timeout=60.0) as client:
         try:
-            # 1. 질문 생성 (/generate-question 호출)
             await call_api(client, "api/generate-question", method='POST') 
-            
-            # 2. 이메일 발송 (/send-daily-questions 호출)
             await call_api(client, "api/send-daily-questions", method='POST')
-
             success = True
         except Exception as e:
-            print(f"[{datetime.now()}] ❌ Daily challenge failed: {e}")
+            print(f"[{datetime.now()}] 질문 생성 및 메일 발송 API 호출에 실패: {e}")
             success = False
             
     return success
 
+# 데이터 정리 API를 호출
 async def run_monthly_cleanup():
-    """데이터 정리 API를 호출합니다."""
-    print(f"[{datetime.now()}] 🧹 Monthly Cleanup Job started.")
+    print(f"[{datetime.now()}] 이전 달의 질문 삭제 API가 시작되었습니다.")
     success = False
     
     async with httpx.AsyncClient(timeout=60.0) as client:
         try:
-            # 이전 달의 데이터 삭제 API 호출
             await call_api(client, "api/delete-old-questions", method='DELETE')
             success = True
         except Exception as e:
-            print(f"[{datetime.now()}] ❌ Monthly cleanup failed: {e}")
+            print(f"[{datetime.now()}] 이전 달의 질문 삭제 API 호출에 실패: {e}")
             success = False
             
     return success
 
-# ----------------------------------------------------
-# 2. 메인 실행 진입점 (단발성 작업 실행)
-# ----------------------------------------------------
 if __name__ == '__main__':
     if len(sys.argv) < 2:
         sys.exit(1)
@@ -80,7 +64,6 @@ if __name__ == '__main__':
     else:
         sys.exit(1)
 
-    # Job Pod 종료 코드: 0이면 성공, 1이면 실패 (CronJob이 재시작 시도 가능)
     if success:
         sys.exit(0)
     else:

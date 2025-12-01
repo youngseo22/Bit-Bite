@@ -18,15 +18,15 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 gemini_client = genai.Client(api_key=GEMINI_API_KEY)
 MODEL_NAME = 'gemini-2.5-flash'
 
+# DB에서 해당 분야의 모든 질문 content를 조회
 def get_previous_questions_from_db(db: Session, track: StudyField) -> List[str]:
-    """DB에서 해당 분야의 모든 질문 content를 조회 -> 한 달 주기 초기화"""
     previous_questions = db.query(Question.content).filter(
         Question.field == track.value
     ).all()
     return [q[0] for q in previous_questions]
 
+# 새로운 질문을 DB에 저장
 def save_new_question_to_db(db: Session, track: StudyField, question_text: str, target_date: datetime.date):
-    """새로운 질문을 DB에 저장"""
     new_question = Question(
         content=question_text,
         field=track.value,
@@ -37,6 +37,7 @@ def save_new_question_to_db(db: Session, track: StudyField, question_text: str, 
     db.commit()
     db.refresh(new_question)
 
+# 모든 트랙 질문 생성
 async def generate_new_question_for_all_tracks(db: Session): 
     today = date.today()
     scheduled_date = get_next_weekday(today)
@@ -72,17 +73,13 @@ async def generate_new_question_for_all_tracks(db: Session):
                 save_new_question_to_db(db, track, new_question, scheduled_date)
             
         except Exception as e:
-            # 🚨 예외 상세 정보를 표준 에러 출력(stderr)으로 강제 출력
-            print(f"--- 🚨 DEBUG: AI 질문 생성 중 예외 발생 (Track: {track.value}) ---", file=sys.stderr)
+            print(f"AI 질문 생성 중 예외가 발생했습니다. (Track: {track.value}) ---", file=sys.stderr)
             traceback.print_exc(file=sys.stderr)
             print("-------------------------------------------------------------------", file=sys.stderr)
-            
-            # 500 에러는 유지하여 스케줄러 Job이 실패하게 함
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="AI 질문 생성 실패")
 
+# 조회된 질문과 사용자 답변을 받아 AI 분석 후 실시간 피드백을 JSON으로 생성
 async def analyze_and_feedback(question_text: str, field: StudyField, user_answer: str) -> FeedbackResult:
-    """조회된 질문과 사용자 답변을 받아 AI 분석 후 실시간 피드백을 JSON으로 생성"""
-
     track_value_str = str(field.name)
     prompt = f"""
         당신은 10년 차 시니어 개발자이자 냉철한 기술 면접관 AI입니다. 
@@ -112,6 +109,7 @@ async def analyze_and_feedback(question_text: str, field: StudyField, user_answe
         "additional_content": [<답변을 보강하기 위해 공부하면 좋은 개념이나 링크 키워드>]
         }}
     """
+
     try:
         response = gemini_client.models.generate_content(
             model=MODEL_NAME,
@@ -122,15 +120,15 @@ async def analyze_and_feedback(question_text: str, field: StudyField, user_answe
         return FeedbackResult.parse_raw(response.text)
 
     except Exception as e:
-        print(f"FATAL AI PROCESSING ERROR: {e}") 
+        print(f"AI 처리에 오류가 발생했습니다. 오류: {e}") 
         
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="AI 피드백 처리 중 오류가 발생했습니다."
         )
 
+# ID로 특정 질문 객체 조회
 def get_question_by_id(db: Session, question_id: int) -> Question:
-    """ID로 특정 질문 객체를 조회"""
     stmt = select(Question).where(Question.id == question_id)
     question = db.execute(stmt).scalar_one_or_none()
     
