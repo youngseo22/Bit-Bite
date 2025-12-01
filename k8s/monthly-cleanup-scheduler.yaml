@@ -15,7 +15,7 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: cleanup-job
-              image: jiwonniddaaa/bit-bite_backend:fix-3
+              image: lolry0207/bit-bite_backend:fix
               args: ["python", "/app/scheduler_runner.py", "monthly-cleanup"]
               envFrom:
                 - secretRef:
