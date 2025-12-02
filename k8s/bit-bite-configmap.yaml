@@ -9,6 +9,7 @@ data:
   REDIS_URL: redis://bitbite-redis-service:6379
   DB_HOST: postgres-service
   DB_PORT: "5432"
+  POSTGRES_USER: postgres
   MAIL_FROM: ysnoh21@sookmyung.ac.kr
   MAIL_PORT: "587"
   MAIL_SERVER: smtp.gmail.com
