@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bit-bite-config
+data:
+  DB_USER: postgres
+  DB_NAME: postgres
+  REDIS_HOST: bitbite-redis-service
+  REDIS_URL: redis://bitbite-redis-service:6379
+  DB_HOST: postgres-service
+  DB_PORT: "5432"
+  MAIL_FROM: ysnoh21@sookmyung.ac.kr
+  MAIL_PORT: "587"
+  MAIL_SERVER: smtp.gmail.com
+  MAIL_FROM_NAME: BitBite
+  TZ: "Asia/Seoul"
+  BACKEND_API_URL: "http://backend-service:8000"

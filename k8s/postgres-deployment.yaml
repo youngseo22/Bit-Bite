@@ -19,22 +19,11 @@ spec:
           image: postgres:15-alpine
           ports:
             - containerPort: 5432
-          env:
-            - name: POSTGRES_USER
-              valueFrom:
-                secretKeyRef:
-                  name: bit-bite-secrets
-                  key: DB_USER
-            - name: POSTGRES_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: bit-bite-secrets
-                  key: DB_PASSWORD
-            - name: POSTGRES_DB
-              valueFrom:
-                secretKeyRef:
-                  name: bit-bite-secrets
-                  key: DB_NAME
+          envFrom:
+            - configMapRef:
+                name: bit-bite-config
+            - secretRef:
+                name: bit-bite-secrets
           volumeMounts:
             - mountPath: /var/lib/postgresql/data
               name: postgres-storage

@@ -6,7 +6,7 @@ metadata:
     app: scheduler
     job: daily
 spec:
-  schedule: "0 12 20 * 1-5"
+  schedule: "25 12 * * 1-5"
   timeZone: "Asia/Seoul"
   jobTemplate:
     spec:
@@ -19,16 +19,7 @@ spec:
               imagePullPolicy: Always
               args: ["python", "/app/scheduler_runner.py", "daily-challenge"]
               envFrom:
+                - configMapRef:
+                    name: bit-bite-config
                 - secretRef:
                     name: bit-bite-secrets
-              env:
-                - name: BACKEND_API_URL
-                  value: "http://backend-service:8000"
-                - name: TZ
-                  value: "Asia/Seoul"
-                - name: DB_HOST
-                  value: postgres-service
-                - name: DB_PORT
-                  value: "5432"
-                - name: REDIS_URL
-                  value: "redis://bitbite-redis-service:6379"
