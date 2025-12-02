@@ -50,7 +50,7 @@ async def send_daily_question(email_to: str, question_text: str, question_id: st
                 <h3 style="color: #3498db;">{question_text}</h3>
             </div>
             
-            <a href="http://127.0.0.1:3000/questions/{question_id}"
+            <a href="http://localhost:30080/question/{question_id}"
             style="display: inline-block; padding: 10px 20px; background-color: #3498db; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">
             오늘의 질문에 답변하러 가기 (바로가기)
             </a>
