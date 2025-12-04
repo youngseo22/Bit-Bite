@@ -8,6 +8,7 @@ metadata:
 spec:
   schedule: "0 1 1 * *"
   timeZone: "Asia/Seoul"
+  concurrencyPolicy: "Forbid"
   jobTemplate:
     spec:
       template:
@@ -15,10 +16,17 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: cleanup-job
-              image: lolry0207/bit-bite_backend:fix
+              image: lolry0207/bit-bite_backend:fixv2
               args: ["python", "/app/scheduler_runner.py", "monthly-cleanup"]
               envFrom:
                 - configMapRef:
                     name: bit-bite-config
                 - secretRef:
                     name: bit-bite-secrets
+              resources:
+                requests:
+                  cpu: "100m"
+                  memory: "128Mi"
+                limits:
+                  cpu: "500m"
+                  memory: "256Mi"
