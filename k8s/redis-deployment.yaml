@@ -12,6 +12,8 @@ spec:
       labels:
         app: redis
     spec:
+      nodeSelector:
+        component: database
       containers:
         - name: redis
           image: redis:alpine

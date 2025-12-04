@@ -14,6 +14,8 @@ spec:
       labels:
         app: frontend
     spec:
+      nodeSelector:
+        component: application
       containers:
         - name: frontend
           image: lolry0207/bit-bite_frontend:fix

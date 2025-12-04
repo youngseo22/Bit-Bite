@@ -14,9 +14,11 @@ spec:
       labels:
         app: backend
     spec:
+      nodeSelector:
+        component: application
       containers:
         - name: backend
-          image: lolry0207/bit-bite_backend:fix
+          image: lolry0207/bit-bite_backend:fixv2
           imagePullPolicy: Always
           ports:
             - containerPort: 8000
