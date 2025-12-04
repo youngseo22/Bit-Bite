@@ -21,3 +21,10 @@ spec:
           image: lolry0207/bit-bite_frontend:fix
           ports:
             - containerPort: 8080
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "100m"
