@@ -18,7 +18,7 @@ spec:
         component: application
       containers:
         - name: backend
-          image: lolry0207/bit-bite_backend:fixv2
+          image: youngseo22/bit-bite_backend:fixv2
           imagePullPolicy: Always
           ports:
             - containerPort: 8000

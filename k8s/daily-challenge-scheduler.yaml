@@ -16,7 +16,7 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: daily-job
-              image: lolry0207/bit-bite_backend:fixv2
+              image: youngseo22/bit-bite_backend:fixv2
               imagePullPolicy: Always
               args: ["python", "/app/scheduler_runner.py", "daily-challenge"]
               envFrom:
