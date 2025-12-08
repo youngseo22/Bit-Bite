@@ -35,6 +35,10 @@ import {
       onSave(email, selectedCategory);
       onOpenChange(false);
     };
+
+    const handleCategoryChange = (value: string) => {
+      setSelectedCategory(value);
+    }
   
     return (
       <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -57,9 +61,9 @@ import {
                               type="radio"
                               className="absolute opacity-0 w-full h-full cursor-pointer peer"
                               id="react-vertical"
-                              value="AI"
+                              value="인공지능"
                               checked={selectedCategory === "인공지능"}
-                              onChange={() => setSelectedCategory("인공지능")}
+                              onChange={() => handleCategoryChange("인공지능")}
                             />
                             <span className="w-3 h-3 rounded-full bg-main opacity-0 peer-checked:opacity-100 transition-opacity duration-200"></span>
                           </div>
@@ -80,9 +84,9 @@ import {
                               type="radio"
                               className="absolute opacity-0 w-full h-full cursor-pointer peer"
                               id="cloud-vertical"
-                              value="CLOUD"
+                              value="클라우드"
                               checked={selectedCategory === "클라우드"}
-                              onChange={() => setSelectedCategory("클라우드")}
+                              onChange={() => handleCategoryChange("클라우드")}
                             />
                             <span className="w-3 h-3 rounded-full bg-main opacity-0 peer-checked:opacity-100 transition-opacity duration-200"></span>
                           </div>
@@ -103,9 +107,9 @@ import {
                               type="radio"
                               className="absolute opacity-0 w-full h-full cursor-pointer peer"
                               id="cs-vertical"
-                              value="CS"
+                              value="컴퓨터공학"
                               checked={selectedCategory === "컴퓨터공학"}
-                              onChange={() => setSelectedCategory("컴퓨터공학")}
+                              onChange={() => handleCategoryChange("컴퓨터공학")}
                             />
                             <span className="w-3 h-3 rounded-full bg-main opacity-0 peer-checked:opacity-100 transition-opacity duration-200"></span>
                           </div>

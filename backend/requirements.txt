@@ -1,0 +1,12 @@
+fastapi
+uvicorn[standard]
+python-dotenv
+SQLAlchemy
+psycopg2-binary
+redis
+fastapi-mail
+google-genai
+apscheduler
+httpx
+python-jose
+python-multipart
