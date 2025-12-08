@@ -18,7 +18,7 @@ spec:
         component: application
       containers:
         - name: backend
-          image: youngseo22/bit-bite_backend:fixv2
+          image: ghcr.io/youngseo22/bit-bite_backend:fixv2
           imagePullPolicy: Always
           ports:
             - containerPort: 8000
