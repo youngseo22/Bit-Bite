@@ -18,7 +18,7 @@ spec:
         component: application
       containers:
         - name: frontend
-          image: lolry0207/bit-bite_frontend:fix
+          image: ghcr.io/youngseo22/bit-bite_frontend:fix
           ports:
             - containerPort: 8080
           resources:
