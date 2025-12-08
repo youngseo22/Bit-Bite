@@ -26,6 +26,8 @@
 
 ### Frontend
 - React
+- Typescript
+- Shadcn/ui
 - Nginx
 
 ### Backend
